@@ -10,11 +10,18 @@ const Login = ({ login, isAuthenticated }) => {
         email: "",
         password: ""
     });
+    const [ error, setError ] = useState(null);
     const { email, password } = formData;
     const handlingInput = (e) => setFormData({...formData, [e.target.name]: e.target.value});
     const handlingSubmit = (e) => {
         e.preventDefault();
-        login( email, password );
+        login( email, password ).catch(err => {
+          if (err.response && err.response.data && err.response.data.detail) {
+              setError(err.response.data.detail);
+          } else {
+              setError("An error occurred. Please try again.");
+          }
+      });
     }
     const reachGoogle = () => {
         const clientID = "949511854956-g8hp12tv3jjbndj5qo951tvebhf6fken.apps.googleusercontent.com";
@@ -56,7 +63,9 @@ const Login = ({ login, isAuthenticated }) => {
   
               <button className="login-button" type="submit">LOGIN</button>
             </form>
-  
+
+            {error && <div className="error-message">{error}</div>}
+
             <div className="divider">or</div>
   
             <button className="google-button" type="button" onClick={reachGoogle}>

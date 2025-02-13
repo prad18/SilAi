@@ -22,6 +22,9 @@ export const login = ( email, password ) => async dispatch => {
             payload: res.data
         })
     } catch (err) {
+        if (err.response && err.response.data && err.response.data.detail === "A user with this email already exists") {
+            throw new Error("A user with this email already exists");
+        }
         dispatch ({
             type: TYPE.LOGIN_FAIL
         })
@@ -159,6 +162,9 @@ export const signup = ( email, first_name, last_name, password1, password2 ) => 
             type: TYPE.SIGNUP_SUCCESS
         });
     } catch (err) {
+        if (err.response && err.response.data && err.response.data.detail === "A user with this email already exists") {
+            throw new Error("A user with this email already exists");
+        }
         dispatch ({
             type: TYPE.SIGNUP_FAIL
         });

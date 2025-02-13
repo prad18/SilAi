@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     # local app
     "accounts",
+    "api",
 ]
 
 MIDDLEWARE = [
@@ -193,3 +194,8 @@ EMAIL_HOST_USER = env("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
 
 AUTH_USER_MODEL = "accounts.CustomUserModel"
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+) ## Ensure this line is included copilot added this

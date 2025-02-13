@@ -8,7 +8,7 @@ import PublicRoute from "./Component/PublicRoute";
 import Layout from "./hocs/Layout";
 
 // Pages
-import Home from "./Pages/Home";
+import LeaderCards from "./Pages/LeaderCards";
 import Login from "./Pages/Login";
 import Signup from "./Pages/Signup";
 import ChangePassword from "./Pages/ChangePassword";
@@ -59,7 +59,7 @@ const App = () => {
               } 
             />
             <Route 
-              path="/reset-password/confirm/:uid/:token" 
+              path="/reset/password/confirm/:uid/:token" 
               element={
                 <PublicRoute>
                   <ResetPasswordConfirm />
@@ -72,7 +72,7 @@ const App = () => {
               path="/home" 
               element={
                 <PrivateRoute>
-                  <Home />
+                  <LeaderCards />
                 </PrivateRoute>
               } 
             />

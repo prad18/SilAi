@@ -2,6 +2,7 @@ from django.contrib.auth.models import BaseUserManager
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth import get_user_model
 
 class CustomUserManager(BaseUserManager):
     def email_validation(self, email):
@@ -16,6 +17,10 @@ class CustomUserManager(BaseUserManager):
         else:
             self.email_validation(email)
             clean_email = self.normalize_email(email)
+
+            if get_user_model().objects.filter(email=clean_email).exists():
+                raise ValueError(_("A user with this email already exists"))
+            
         if not first_name:
             raise ValueError(_("This is required field"))
         
@@ -41,6 +46,10 @@ class CustomUserManager(BaseUserManager):
         else:
             self.email_validation(email)
             clean_email = self.normalize_email(email)
+
+            if get_user_model().objects.filter(email=clean_email).exists():
+                raise ValueError(_("A user with this email already exists"))
+
         if not first_name:
             raise ValueError(_("This is required field"))
         if extra_fields.get("is_superuser") is not True:

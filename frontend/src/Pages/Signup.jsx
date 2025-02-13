@@ -14,11 +14,19 @@ const Signup = ({ signup }) => {
         password1: "",
         password2: ""
     });
+    const [ error, setError ] = useState(null);
+
     const { email, first_name, last_name, password1, password2 } = formData;
     const handlingInput = (e) => setFormData({...formData, [e.target.name]: e.target.value});
     const handlingSubmit = (e) => {
         e.preventDefault();
-        signup( email, first_name, last_name, password1, password2 );
+        signup( email, first_name, last_name, password1, password2 ).catch(err => {
+            if (err.response && err.response.data && err.response.data.detail) {
+                setError(err.response.data.detail);
+            } else {
+                setError("An error occurred. Please try again.");
+            }
+        });
         setStatus(true)
     }
     if (status) {
@@ -96,6 +104,7 @@ const Signup = ({ signup }) => {
                 <button className="login-button" type="submit">Signup</button>
             </form>
 
+            {error && <div className="error-message">{error}</div>}
             <p className="signup-link">
                 Already have an account? <Link to="../login/">Login</Link>
             </p>
