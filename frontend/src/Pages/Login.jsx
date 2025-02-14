@@ -3,7 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useState } from "react";
 import { connect } from "react-redux";
 import { login } from "../reducer/Actions";
-import "../css/main.css"; 
+import "../css/login.css"; 
 
 const Login = ({ login, isAuthenticated }) => {
     const [ formData, setFormData ] = useState ({
@@ -24,7 +24,7 @@ const Login = ({ login, isAuthenticated }) => {
       });
     }
     const reachGoogle = () => {
-        const clientID = "949511854956-g8hp12tv3jjbndj5qo951tvebhf6fken.apps.googleusercontent.com";
+        const clientID = `${process.env.REACT_APP_CLIENT_ID}`;
         const callBackURI = "http://localhost:3000/";
         window.location.replace(`https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=${callBackURI}&prompt=consent&response_type=code&client_id=${clientID}&scope=openid%20email%20profile&access_type=offline`)
     }

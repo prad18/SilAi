@@ -22,7 +22,7 @@ const Layout = (props) => {
 
     return (
         <div>
-            {props.isAuthenticated && <Navbar />} {/* Show Navbar only if authenticated */}
+            {props.isAuthenticated && <Navbar />}
             {props.message ? <Alert message={props.message} /> : null}
             {props.children}
         </div>
