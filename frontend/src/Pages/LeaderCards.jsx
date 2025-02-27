@@ -62,7 +62,7 @@ const Home = ({ user }) => {
       </div>
 
       {/* 🔹 Greeting */}
-      <h1 className="greet">Hello, {user.first_name || "User"}</h1>
+      <h1 className="greet">Hello, {user?.first_name || "User"}</h1>
 
       {/* 🔹 People Section (showing leader cards) */}
       <div className="list">

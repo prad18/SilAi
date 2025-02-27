@@ -1,5 +1,10 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { Provider } from "react-redux";
 
 // Components
@@ -26,63 +31,63 @@ const App = () => {
         <Layout>
           <Routes>
             {/* Public Routes - Redirect to home if authenticated */}
-            <Route 
-              path="/login" 
+            <Route
+              path="/login"
               element={
                 <PublicRoute>
                   <Login />
                 </PublicRoute>
-              } 
+              }
             />
-            <Route 
-              path="/signup" 
+            <Route
+              path="/signup"
               element={
                 <PublicRoute>
                   <Signup />
                 </PublicRoute>
-              } 
+              }
             />
-            <Route 
-              path="/reset-password" 
+            <Route
+              path="/reset-password"
               element={
                 <PublicRoute>
                   <ResetPassword />
                 </PublicRoute>
-              } 
+              }
             />
-            <Route 
-              path="/dj-rest-auth/registration/account-confirm-email/:key" 
+            <Route
+              path="/dj-rest-auth/registration/account-confirm-email/:key"
               element={
                 <PublicRoute>
                   <EmailVerification />
                 </PublicRoute>
-              } 
+              }
             />
-            <Route 
-              path="/reset/password/confirm/:uid/:token" 
+            <Route
+              path="/reset/password/confirm/:uid/:token"
               element={
                 <PublicRoute>
                   <ResetPasswordConfirm />
                 </PublicRoute>
-              } 
+              }
             />
 
             {/* Protected Routes - Require authentication */}
-            <Route 
-              path="/home" 
+            <Route
+              path="/home"
               element={
                 <PrivateRoute>
                   <LeaderCards />
                 </PrivateRoute>
-              } 
+              }
             />
-            <Route 
-              path="/change-password" 
+            <Route
+              path="/change-password"
               element={
                 <PrivateRoute>
                   <ChangePassword />
                 </PrivateRoute>
-              } 
+              }
             />
 
             {/* Redirect root to login */}
