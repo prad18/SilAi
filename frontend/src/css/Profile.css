@@ -1,0 +1,43 @@
+.profile-container {
+    width: 50%;
+    margin: auto;
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .profile-pic img {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  
+  .profile-pic input {
+    display: block;
+    margin: 10px auto;
+  }
+  
+  input {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+  }
+  
+  button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  .profile-image-preview {
+    width: 150px;  /* Adjust as needed */
+    height: 150px;
+    border-radius: 50%;  /* Circular shape */
+    object-fit: cover;  /* Ensures proper cropping */
+    display: block;
+    margin: 10px auto;  /* Centering */
+    border: 2px solid #ccc; /* Optional border */
+  }
+  
