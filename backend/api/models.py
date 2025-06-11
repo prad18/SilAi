@@ -70,3 +70,16 @@ def process_leader_pdf_to_faiss(sender, instance, **kwargs):
             
         except Exception as e:
             print(f"Error processing PDF for {instance.name}: {e}")
+
+class Chat(models.Model):
+    leader = models.ForeignKey(Leader, on_delete=models.CASCADE, related_name='chats')
+    user_input = models.TextField()
+    ai_response = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    session_id = models.CharField(max_length=100)  # To group messages in a chat session
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"Chat with {self.leader.name} at {self.timestamp}"
