@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Chat from './Chat';
 import './Leader.css';
 
 const Leader = ({ leader }) => {
     const [showChat, setShowChat] = useState(false);
+
+    useEffect(() => {
+        console.log('Leader component mounted with leader:', leader);
+    }, [leader]);
+
+    const handleChatClick = () => {
+        console.log('Chat button clicked, current showChat:', showChat);
+        setShowChat(!showChat);
+    };
 
     return (
         <div className="leader-card">
@@ -15,7 +24,7 @@ const Leader = ({ leader }) => {
                 <p>{leader.bio}</p>
                 <button 
                     className="chat-button"
-                    onClick={() => setShowChat(!showChat)}
+                    onClick={handleChatClick}
                 >
                     {showChat ? 'Close Chat' : 'Chat with Leader'}
                 </button>

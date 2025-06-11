@@ -1,9 +1,9 @@
 from rest_framework import generics, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .models import Leader, Chat
 from .serializers import LeaderSerializer, ChatSerializer
-from rest_framework.permissions import IsAuthenticated
 import pickle
 import os
 from django.conf import settings
@@ -21,6 +21,7 @@ class LeaderList(generics.ListAPIView):
 class LeaderViewSet(viewsets.ModelViewSet):
     queryset = Leader.objects.all()
     serializer_class = LeaderSerializer
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=['post'])
     def chat(self, request, pk=None):
@@ -34,11 +35,23 @@ class LeaderViewSet(viewsets.ModelViewSet):
         try:
             # Load the FAISS index from pickle file
             pkl_path = os.path.join(settings.MEDIA_ROOT, leader.pkl_file_path)
+            if not os.path.exists(pkl_path):
+                return Response(
+                    {'error': 'Leader knowledge base not found. Please ensure the PDF has been processed.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
             with open(pkl_path, 'rb') as f:
                 db = pickle.load(f)
 
             # Initialize Ollama LLM
-            llm = Ollama(model="llama2", base_url="http://localhost:11434")
+            try:
+                llm = Ollama(model="llama2", base_url="http://localhost:11434")
+            except Exception as e:
+                return Response(
+                    {'error': 'Failed to connect to Ollama. Please ensure Ollama is running with llama2 model.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
 
             # Create prompt template
             prompt = ChatPromptTemplate.from_template("""
@@ -85,7 +98,11 @@ class LeaderViewSet(viewsets.ModelViewSet):
             })
 
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print(f"Error in chat endpoint: {str(e)}")
+            return Response(
+                {'error': f'An error occurred while processing your message: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=True, methods=['get'])
     def chat_history(self, request, pk=None):
@@ -102,6 +119,7 @@ class LeaderViewSet(viewsets.ModelViewSet):
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         session_id = self.request.query_params.get('session_id')

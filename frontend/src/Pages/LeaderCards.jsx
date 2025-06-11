@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { connect, useSelector } from "react-redux";
+import Chat from "../Component/Chat";
 import "../css/Mainpage.css"; // Ensure this path is correct
 
 const Home = ({ user }) => {
@@ -9,6 +10,7 @@ const Home = ({ user }) => {
   const { access, isAuthenticated } = useSelector((state) => state.AuthReducer);
   const navigate = useNavigate();
   const [leaders, setLeaders] = useState([]);
+  const [selectedLeader, setSelectedLeader] = useState(null);
 
   // Fetch leader data using axios (with token authorization)
   useEffect(() => {
@@ -48,6 +50,14 @@ const Home = ({ user }) => {
     navigate("/profile");
   };
 
+  const handleChatClick = (leader) => {
+    setSelectedLeader(leader);
+  };
+
+  const handleCloseChat = () => {
+    setSelectedLeader(null);
+  };
+
   return (
     <div className="page-container">
       {/* 🔹 Navbar */}
@@ -77,7 +87,12 @@ const Home = ({ user }) => {
                   className="person-image"
                 />
                 <p className="person-name">{leader.name}</p>
-                <button className="chat-button">Chat</button>
+                <button 
+                  className="chat-button"
+                  onClick={() => handleChatClick(leader)}
+                >
+                  Chat
+                </button>
               </div>
             ))
           ) : (
@@ -94,6 +109,16 @@ const Home = ({ user }) => {
           <p className="loading-text">No symbolism data available</p>
         </div>
       </div> */}
+
+      {/* Chat Modal */}
+      {selectedLeader && (
+        <div className="chat-modal">
+          <div className="chat-modal-content">
+            <button className="close-button" onClick={handleCloseChat}>×</button>
+            <Chat leader={selectedLeader} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
