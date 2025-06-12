@@ -1,19 +1,42 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useState } from "react";
 import { connect } from "react-redux";
 import { closeAlert } from "../reducer/Actions";
+import "./alert.css";
 
 const Alert = (props) => {
     const [classAlert, setClassAlert] = useState("alert");
+    const [isVisible, setIsVisible] = useState(true);
+
+    useEffect(() => {
+        // Auto-dismiss after 5 seconds
+        const timer = setTimeout(() => {
+            setIsVisible(false);
+            setTimeout(() => {
+                props.closeAlert();
+            }, 300); // Wait for fade out animation
+        }, 5000);
+
+        return () => clearTimeout(timer);
+    }, [props.closeAlert]);
+
     const handleClose = () => {
-        setClassAlert("alert d-none");
-        props.closeAlert();
+        setIsVisible(false);
+        setTimeout(() => {
+            props.closeAlert();
+        }, 300); // Wait for fade out animation
     };
+
     return (
-        <div className={classAlert}>
-            <div className="d-flex">
-                <div className="toast-body">{props.message}</div>
-                <div className="button btn-close me-2 m-auto" type="button" onClick={handleClose}></div>
+        <div className={`alert-container ${isVisible ? 'show' : 'hide'}`}>
+            <div className={`alert ${props.type || 'info'}`}>
+                <div className="alert-content">
+                    <div className="alert-message">{props.message}</div>
+                    <button className="alert-close" onClick={handleClose}>
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div className="alert-progress"></div>
             </div>
         </div>
     );

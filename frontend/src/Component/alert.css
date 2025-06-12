@@ -1,0 +1,127 @@
+.alert-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 300px;
+    max-width: 400px;
+}
+
+.alert {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.alert-content {
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.alert-message {
+    flex: 1;
+    margin-right: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.alert-close {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 20px;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.alert-close:hover {
+    opacity: 1;
+}
+
+.alert-progress {
+    height: 3px;
+    background: #007bff;
+    width: 100%;
+    animation: progress 5s linear;
+}
+
+/* Alert types */
+.alert.success {
+    border-left: 4px solid #28a745;
+}
+
+.alert.success .alert-progress {
+    background: #28a745;
+}
+
+.alert.error {
+    border-left: 4px solid #dc3545;
+}
+
+.alert.error .alert-progress {
+    background: #dc3545;
+}
+
+.alert.warning {
+    border-left: 4px solid #ffc107;
+}
+
+.alert.warning .alert-progress {
+    background: #ffc107;
+}
+
+.alert.info {
+    border-left: 4px solid #17a2b8;
+}
+
+.alert.info .alert-progress {
+    background: #17a2b8;
+}
+
+/* Animation */
+@keyframes progress {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
+.alert-container.show {
+    animation: slideIn 0.3s ease-out;
+}
+
+.alert-container.hide {
+    animation: slideOut 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+} 

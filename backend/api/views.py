@@ -53,8 +53,23 @@ class LeaderViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
 
-            # Create prompt template
+            # Get chat history for context
+            chat_history = Chat.objects.filter(
+                leader=leader,
+                session_id=session_id
+            ).order_by('timestamp')[:5]  # Get last 5 exchanges for context
+
+            # Create context from chat history
+            context = "\n".join([
+                f"User: {chat.user_input}\nAssistant: {chat.ai_response}"
+                for chat in chat_history
+            ])
+
+            # Create prompt template with chat history
             prompt = ChatPromptTemplate.from_template("""
+            Previous conversation:
+            {chat_history}
+
             Answer the following question based **only** on the provided context.  
             If the context **does not contain relevant information**, respond with **"I don't have enough information to answer this."**  
 
@@ -78,7 +93,8 @@ class LeaderViewSet(viewsets.ModelViewSet):
 
             # Get response
             response = retrieval_chain.invoke({
-                "input": user_input
+                "input": user_input,
+                "chat_history": context
             })
 
             ai_response = response['answer']
@@ -112,9 +128,27 @@ class LeaderViewSet(viewsets.ModelViewSet):
         if not session_id:
             return Response({'error': 'Session ID is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        chats = Chat.objects.filter(leader=leader, session_id=session_id)
+        chats = Chat.objects.filter(leader=leader, session_id=session_id).order_by('timestamp')
         serializer = ChatSerializer(chats, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['delete'])
+    def clear_chat(self, request, pk=None):
+        leader = self.get_object()
+        session_id = request.query_params.get('session_id')
+        
+        if not session_id:
+            return Response({'error': 'Session ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Delete all chats for this session
+            Chat.objects.filter(leader=leader, session_id=session_id).delete()
+            return Response({'message': 'Chat history cleared successfully'})
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to clear chat history: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()

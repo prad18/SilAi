@@ -21,12 +21,26 @@ export const login = ( email, password ) => async dispatch => {
             type: TYPE.LOGIN_SUCCESS,
             payload: res.data
         })
+        dispatch({
+            type: TYPE.SHOW_ALERT,
+            payload: {
+                message: "Login successful!",
+                type: "success"
+            }
+        })
     } catch (err) {
         if (err.response && err.response.data && err.response.data.detail === "A user with this email already exists") {
             throw new Error("A user with this email already exists");
         }
         dispatch ({
             type: TYPE.LOGIN_FAIL
+        })
+        dispatch({
+            type: TYPE.SHOW_ALERT,
+            payload: {
+                message: "Login failed. Please check your credentials.",
+                type: "error"
+            }
         })
     }
 }
@@ -124,9 +138,23 @@ export const changePassword = ( new_password1, new_password2, old_password ) => 
         dispatch ({
             type: TYPE.CHANGE_PASSWORD_SUCCESS
         });
+        dispatch({
+            type: TYPE.SHOW_ALERT,
+            payload: {
+                message: "Password changed successfully!",
+                type: "success"
+            }
+        });
     } catch (err) {
         dispatch ({
             type: TYPE.CHANGE_PASSWORD_FAIL
+        });
+        dispatch({
+            type: TYPE.SHOW_ALERT,
+            payload: {
+                message: "Failed to change password. Please try again.",
+                type: "error"
+            }
         });
     }
 }
@@ -161,12 +189,26 @@ export const signup = ( email, first_name, last_name, password1, password2 ) => 
         dispatch ({
             type: TYPE.SIGNUP_SUCCESS
         });
+        dispatch({
+            type: TYPE.SHOW_ALERT,
+            payload: {
+                message: "Registration successful! Please check your email for verification.",
+                type: "success"
+            }
+        });
     } catch (err) {
         if (err.response && err.response.data && err.response.data.detail === "A user with this email already exists") {
             throw new Error("A user with this email already exists");
         }
         dispatch ({
             type: TYPE.SIGNUP_FAIL
+        });
+        dispatch({
+            type: TYPE.SHOW_ALERT,
+            payload: {
+                message: "Registration failed. Please try again.",
+                type: "error"
+            }
         });
     };
 };
