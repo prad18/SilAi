@@ -12,6 +12,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 import uuid
+from langchain.llms import Ollama
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
 
 class LeaderList(generics.ListAPIView):
     queryset = Leader.objects.all()
@@ -25,128 +28,128 @@ class LeaderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def chat(self, request, pk=None):
-        leader = self.get_object()
-        user_input = request.data.get('message')
-        session_id = request.data.get('session_id', str(uuid.uuid4()))
-
-        if not user_input:
-            return Response({'error': 'Message is required'}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
-            # Load the FAISS index from pickle file
-            pkl_path = os.path.join(settings.MEDIA_ROOT, leader.pkl_file_path)
-            if not os.path.exists(pkl_path):
-                return Response(
-                    {'error': 'Leader knowledge base not found. Please ensure the PDF has been processed.'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            leader = self.get_object()
+            user_message = request.data.get('message', '')
+            session_id = request.data.get('session_id')
 
-            with open(pkl_path, 'rb') as f:
-                db = pickle.load(f)
+            if not session_id:
+                session_id = str(uuid.uuid4())
 
-            # Initialize Ollama LLM
-            try:
-                llm = Ollama(model="llama2", base_url="http://localhost:11434")
-            except Exception as e:
-                return Response(
-                    {'error': 'Failed to connect to Ollama. Please ensure Ollama is running with llama2 model.'},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE
-                )
-
-            # Get chat history for context
+            # Get chat history (last 5 exchanges)
             chat_history = Chat.objects.filter(
                 leader=leader,
                 session_id=session_id
-            ).order_by('timestamp')[:5]  # Get last 5 exchanges for context
+            ).order_by('-timestamp')[:10]
 
             # Create context from chat history
-            context = "\n".join([
-                f"User: {chat.user_input}\nAssistant: {chat.ai_response}"
-                for chat in chat_history
-            ])
+            context = ""
+            if chat_history.exists():
+                for chat in reversed(chat_history):
+                    if chat.user_input:
+                        context += f"User: {chat.user_input}\n"
+                    if chat.ai_response:
+                        context += f"Assistant: {chat.ai_response}\n"
 
-            # Create prompt template with chat history
-            prompt = ChatPromptTemplate.from_template("""
-            Previous conversation:
-            {chat_history}
+            # Load the knowledge base if it exists
+            if leader.pkl_file_path and os.path.exists(leader.pkl_file_path):
+                with open(leader.pkl_file_path, 'rb') as f:
+                    vectorstore = pickle.load(f)
+                
+                # Create prompt with context and knowledge base
+                prompt = f"""You are {leader.name}. Use the following context from previous conversation and knowledge base to answer the question.
 
-            Answer the following question based **only** on the provided context.  
-            If the context **does not contain relevant information**, respond with **"I don't have enough information to answer this."**  
+Previous conversation:
+{context}
 
-            Provide a **concise and factual** response, avoiding unnecessary details.
+Knowledge base:
+{vectorstore.similarity_search(user_message, k=3)}
 
-            <context>  
-            {context}  
-            </context>  
+User: {user_message}
+Assistant:"""
+            else:
+                # If no knowledge base, just use the context
+                prompt = f"""You are {leader.name}. Use the following context from previous conversation to answer the question.
 
-            Question: {input}  
-            """)
+Previous conversation:
+{context}
 
-            # Create document chain
-            document_chain = create_stuff_documents_chain(llm, prompt)
+User: {user_message}
+Assistant:"""
 
-            # Initialize retriever
-            retriever = db.as_retriever()
+            # Initialize Ollama
+            llm = Ollama(model="llama2", base_url="http://localhost:11434")
+            
+            # Generate response
+            response = llm(prompt)
 
-            # Create retrieval chain
-            retrieval_chain = create_retrieval_chain(retriever, document_chain)
-
-            # Get response
-            response = retrieval_chain.invoke({
-                "input": user_input,
-                "chat_history": context
-            })
-
-            ai_response = response['answer']
-
-            # Save chat to database
+            # Save the chat
             chat = Chat.objects.create(
                 leader=leader,
-                user_input=user_input,
-                ai_response=ai_response,
-                session_id=session_id
+                session_id=session_id,
+                user_input=user_message,
+                ai_response=response
             )
 
             return Response({
-                'response': ai_response,
-                'session_id': session_id,
-                'chat_id': chat.id
+                'response': response,
+                'session_id': session_id
             })
 
         except Exception as e:
-            print(f"Error in chat endpoint: {str(e)}")
             return Response(
-                {'error': f'An error occurred while processing your message: {str(e)}'},
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     @action(detail=True, methods=['get'])
     def chat_history(self, request, pk=None):
-        leader = self.get_object()
-        session_id = request.query_params.get('session_id')
-        
-        if not session_id:
-            return Response({'error': 'Session ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        chats = Chat.objects.filter(leader=leader, session_id=session_id).order_by('timestamp')
-        serializer = ChatSerializer(chats, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=['delete'])
-    def clear_chat(self, request, pk=None):
-        leader = self.get_object()
-        session_id = request.query_params.get('session_id')
-        
-        if not session_id:
-            return Response({'error': 'Session ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
-            # Delete all chats for this session
-            Chat.objects.filter(leader=leader, session_id=session_id).delete()
-            return Response({'message': 'Chat history cleared successfully'})
+            leader = self.get_object()
+            session_id = request.query_params.get('session_id')
+
+            if not session_id:
+                return Response(
+                    {'error': 'session_id is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            chats = Chat.objects.filter(
+                leader=leader,
+                session_id=session_id
+            ).order_by('timestamp')
+
+            serializer = ChatSerializer(chats, many=True)
+            return Response(serializer.data)
+
         except Exception as e:
             return Response(
-                {'error': f'Failed to clear chat history: {str(e)}'},
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def clear_chat(self, request, pk=None):
+        try:
+            leader = self.get_object()
+            session_id = request.data.get('session_id')
+
+            if not session_id:
+                return Response(
+                    {'error': 'session_id is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            Chat.objects.filter(
+                leader=leader,
+                session_id=session_id
+            ).delete()
+
+            return Response({'message': 'Chat history cleared successfully'})
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
