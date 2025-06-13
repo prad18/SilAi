@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import './Chat.css';
@@ -9,38 +9,53 @@ const MAX_MESSAGES = 20; // Maximum number of messages before prompting to clear
 const Chat = ({ leader }) => {
     const [messages, setMessages] = useState([]);
     const [inputMessage, setInputMessage] = useState('');
-    const [sessionId, setSessionId] = useState(uuidv4());
+    const [sessionId, setSessionId] = useState(() => {
+        // Try to get existing session ID from localStorage
+        const storedSessionId = localStorage.getItem(`chat_session_${leader.id}`);
+        if (storedSessionId) {
+            return storedSessionId;
+        }
+        // Generate new session ID if none exists
+        const newSessionId = uuidv4();
+        localStorage.setItem(`chat_session_${leader.id}`, newSessionId);
+        return newSessionId;
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [showClearPrompt, setShowClearPrompt] = useState(false);
     const messagesEndRef = useRef(null);
 
-    useEffect(() => {
-        console.log('Chat component mounted with leader:', leader);
-        console.log('API Base URL:', API_BASE_URL);
-        loadChatHistory();
-    }, [leader]);
+    // Get auth token
+    const getAuthHeader = () => {
+        const token = localStorage.getItem('access');
+        return {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+    };
 
-    const loadChatHistory = async () => {
+    const loadChatHistory = useCallback(async () => {
         try {
+            console.log('Loading chat history for leader:', leader.id);
+            console.log('Using session ID:', sessionId);
             const response = await axios.get(
                 `${API_BASE_URL}/api/leaders/${leader.id}/chat_history/`,
                 {
                     params: { session_id: sessionId },
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('access')}`,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: getAuthHeader()
                 }
             );
+            
+            console.log('Chat history response:', response.data);
             
             if (response.data.length > 0) {
                 const formattedMessages = response.data.flatMap(chat => [
                     { type: 'user', content: chat.user_input },
                     { type: 'ai', content: chat.ai_response }
                 ]);
+                console.log('Formatted messages:', formattedMessages);
                 setMessages(formattedMessages);
             } else {
-                // If no history, show welcome message
+                console.log('No chat history found, showing welcome message');
                 setMessages([{
                     type: 'ai',
                     content: `Hello! I'm ${leader.name}. How can I help you today?`
@@ -48,12 +63,23 @@ const Chat = ({ leader }) => {
             }
         } catch (error) {
             console.error('Error loading chat history:', error);
+            console.error('Error details:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
             setMessages([{
                 type: 'ai',
                 content: `Hello! I'm ${leader.name}. How can I help you today?`
             }]);
         }
-    };
+    }, [leader.id, sessionId, API_BASE_URL]);
+
+    useEffect(() => {
+        console.log('Chat component mounted with leader:', leader);
+        console.log('API Base URL:', API_BASE_URL);
+        loadChatHistory();
+    }, [leader, loadChatHistory]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -80,11 +106,7 @@ const Chat = ({ leader }) => {
                 message: userMessage,
                 session_id: sessionId
             }, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('access')}`
-                },
-                withCredentials: true
+                headers: getAuthHeader()
             });
 
             setMessages(prev => [...prev, { type: 'ai', content: response.data.response }]);
@@ -111,14 +133,11 @@ const Chat = ({ leader }) => {
     const handleClearChat = async () => {
         try {
             // Call backend to clear chat history
-            await axios.delete(
+            await axios.post(
                 `${API_BASE_URL}/api/leaders/${leader.id}/clear_chat/`,
+                { session_id: sessionId },
                 {
-                    params: { session_id: sessionId },
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('access')}`,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: getAuthHeader()
                 }
             );
 
@@ -127,7 +146,10 @@ const Chat = ({ leader }) => {
                 type: 'ai',
                 content: `Hello! I'm ${leader.name}. How can I help you today?`
             }]);
-            setSessionId(uuidv4());
+            // Generate new session ID and store it
+            const newSessionId = uuidv4();
+            localStorage.setItem(`chat_session_${leader.id}`, newSessionId);
+            setSessionId(newSessionId);
             setShowClearPrompt(false);
         } catch (error) {
             console.error('Error clearing chat:', error);

@@ -1,12 +1,15 @@
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
+from django.contrib.auth import get_user_model
 import os
 import pickle
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from django.conf import settings
+
+User = get_user_model()
 
 class Leader(models.Model):
     name = models.CharField(max_length=100)
@@ -72,6 +75,7 @@ def process_leader_pdf_to_faiss(sender, instance, **kwargs):
             print(f"Error processing PDF for {instance.name}: {e}")
 
 class Chat(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chats', null=True)  # Temporarily allow null
     leader = models.ForeignKey(Leader, on_delete=models.CASCADE, related_name='chats')
     user_input = models.TextField()
     ai_response = models.TextField()

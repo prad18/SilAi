@@ -9,5 +9,5 @@ class LeaderSerializer(serializers.ModelSerializer):
 class ChatSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chat
-        fields = ['id', 'leader', 'user_input', 'ai_response', 'timestamp', 'session_id']
-        read_only_fields = ['timestamp']
+        fields = ['id', 'user', 'leader', 'user_input', 'ai_response', 'timestamp', 'session_id']
+        read_only_fields = ['timestamp', 'user']
