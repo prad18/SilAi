@@ -132,19 +132,22 @@
 
 
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { connect, useSelector } from "react-redux";
+import { logout } from "../reducer/Actions"; // Import logout
 import Chat from "../Component/Chat";
-import "../css/Mainpage.css"; // Ensure this path is correct
+import "../css/Mainpage.css";
 
-const Home = ({ user }) => {
+const Home = ({ user, logout }) => {
   const { access, isAuthenticated } = useSelector((state) => state.AuthReducer);
   const navigate = useNavigate();
   const [leaders, setLeaders] = useState([]);
   const [selectedLeader, setSelectedLeader] = useState(null);
   const [userProfileImage, setUserProfileImage] = useState(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
 
   // Fetch both user profile and leaders data
   useEffect(() => {
@@ -189,8 +192,7 @@ const Home = ({ user }) => {
     fetchData();
   }, [access, isAuthenticated, navigate]);
 
-
-  // Add useEffect to set profile image like in UserProfile.jsx
+  // Close dropdown when clicking outside
   useEffect(() => {
     if (user?.profile_image) {
       setUserProfileImage(`${process.env.REACT_APP_API_URL}${user.profile_image}`);
@@ -199,9 +201,35 @@ const Home = ({ user }) => {
     }
   }, [user]);
 
-  // Handle click on the user logo in the navbar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  
   const handleUserLogoClick = () => {
+    setShowDropdown((prev) => !prev);
+  };
+
+  const handleMyAccount = () => {
+    setShowDropdown(false);
     navigate("/profile");
+  };
+
+  const handleChangePassword = () => {
+    setShowDropdown(false);
+    navigate("/change-password");
+  };
+
+  const handleLogout = () => {
+    setShowDropdown(false);
+    logout();
+    navigate("/login");
   };
 
   const handleChatClick = (leader) => {
@@ -217,19 +245,27 @@ const Home = ({ user }) => {
       {/* 🔹 Navbar */}
       <div className="navbar">
         <h2 className="navbar-title">SilAI</h2>
-        <img
-          src={userProfileImage || "./user.svg"} 
-          alt="User Logo"
-          className="user-logo"
-          onClick={handleUserLogoClick}
-        />
+        <div className="user-logo-wrapper" ref={dropdownRef} style={{ position: "relative" }}>
+          <img
+            src={userProfileImage || "./user.svg"} 
+            alt="User Logo"
+            className="user-logo"
+            onClick={handleUserLogoClick}
+            style={{ cursor: "pointer" }}
+          />
+          {showDropdown && (
+            <div className="profile-dropdown">
+              <button onClick={handleMyAccount}>My Account</button>
+              <button onClick={handleChangePassword}>Change Password</button>
+              <button onClick={handleLogout}>Logout</button>
+            </div>
+          )}
+        </div>
       </div>
-      
+
       {/* 🔹 Greeting */}
       <h1 className="greet">Hello, {user?.first_name || "User"}</h1>
 
-      {/* ...rest of your JSX remains the same... */}
-      
       {/* 🔹 People Section (showing leader cards) */}
       <div className="list">
         <h4 className="l-header">People</h4>
@@ -271,7 +307,7 @@ const Home = ({ user }) => {
 };
 
 const mapStateToProps = (state) => ({
-  user: state.AuthReducer.user, // User info from your Redux state
+  user: state.AuthReducer.user,
 });
 
-export default connect(mapStateToProps)(Home);
+export default connect(mapStateToProps, { logout })(Home);

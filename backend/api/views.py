@@ -130,7 +130,7 @@ Answer:
                 leader=leader,
                 session_id=session_id,
                 user=request.user
-            ).order_by('timestamp')
+            ).order_by('timestamp') 
 
             serializer = ChatSerializer(chats, many=True)
             return Response(serializer.data)
