@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { useState } from "react";
 import { connect } from "react-redux";
 import { closeAlert } from "../reducer/Actions";
-import "./alert.css";
+import "../css/alert.css"; // Assuming you have a CSS file for styling
 
 const Alert = (props) => {
     const [classAlert, setClassAlert] = useState("alert");

@@ -13,7 +13,7 @@ import PublicRoute from "./Component/PublicRoute";
 import Layout from "./hocs/Layout";
 
 // Pages
-import LeaderCards from "./Pages/LeaderCards";
+import Home from "./Pages/Home";
 import Login from "./Pages/Login";
 import Signup from "./Pages/Signup";
 import ChangePassword from "./Pages/ChangePassword";
@@ -78,7 +78,7 @@ const App = () => {
               path="/home"
               element={
                 <PrivateRoute>
-                  <LeaderCards />
+                  <Home />
                 </PrivateRoute>
               }
             />

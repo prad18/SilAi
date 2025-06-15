@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { connect } from "react-redux";
 import { useState } from "react";
 import { changePassword } from "../reducer/Actions";
+import "../css/login.css";
 
 const ChangePassword = ({ isAuthenticated, changePassword }) => {
     const [ formData, setFormData ] = useState ({
@@ -21,7 +22,7 @@ const ChangePassword = ({ isAuthenticated, changePassword }) => {
     }
     return (
         <div className="page-container">
-        <h1 className="main-title">SilAI</h1>
+        <h1 className="main-title"></h1>
 
         <div className="login-container">
             <div className="login-card">
