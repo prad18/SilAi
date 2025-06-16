@@ -1,0 +1,119 @@
+/* changepwd.css */
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap');
+
+.change-password-container {
+  /* Remove individual background declarations */
+  padding-top: 10px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+
+
+  background-size: cover;
+  background-position: center;
+  min-height: 100vh;
+  padding: 2rem 1.5rem;
+  box-sizing: border-box;
+  font-family: 'Pixelify Sans', sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* ⬅ push content to the top */
+  gap: 2rem;
+}
+
+
+.heading {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  padding-left: 0.5rem;
+}
+
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+}
+
+.form-label {
+  font-size: 1rem;
+}
+
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+
+.input-field {
+  width: 100%;
+  padding: 0.8rem 2.5rem 0.8rem 1rem; /* right padding gives space for icon */
+  font-size: 1rem;
+  border-radius: 1rem;
+  border: none;
+  background-color: #d3eafd;
+  font-family: sans-serif;
+  color: #000;
+  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.2);
+  height: auto; /* make sure it's not fixed height */
+}
+
+
+
+.toggle-icon {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  height: 24px; /* ensure there's space for the icon */
+  width: 24px;
+}
+
+.save-button {
+  margin-top: 3rem;
+  padding: 0.9rem;
+  font-size: 1rem;
+  font-family: 'Pixelify Sans', sans-serif;
+  border: none;
+  border-radius: 1.5rem;
+  background-color: #4b5dfb;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  width: 100%;
+  text-align: center;
+  cursor: pointer;
+}
+
+.toggle-icon svg {
+  width: 18px;   
+  height: 18px;
+  color: #333;
+  display: block;
+  opacity: 0.5; 
+  transition: opacity 0.2s ease;
+}
+.toggle-icon:hover svg {
+  opacity: 0.8; /* Slightly brighter on hover for user feedback */
+}
+
+
+
+.top-wrapper {
+  margin-top: 1vh; /* adjust this if needed */
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem; /* reduce gap between heading and form */
+}
+@media (max-height: 700px) {
+  .top-wrapper {
+    margin-top: vh;
+  }
+}
