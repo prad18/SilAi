@@ -28,6 +28,7 @@ class LeaderViewSet(viewsets.ModelViewSet):
         leader = self.get_object()
         user_input = request.data.get('message')
         session_id = request.data.get('session_id', str(uuid.uuid4()))
+        chat_history = []
 
         if not user_input:
             return Response({'error': 'Message is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -45,7 +46,7 @@ class LeaderViewSet(viewsets.ModelViewSet):
             })
 
         try:
-            # Load the FAISS index from pickle file
+            # Load the FAISS index
             pkl_path = os.path.join(settings.MEDIA_ROOT, leader.pkl_file_path)
             if not os.path.exists(pkl_path):
                 return Response(
@@ -56,16 +57,16 @@ class LeaderViewSet(viewsets.ModelViewSet):
             with open(pkl_path, 'rb') as f:
                 db = pickle.load(f)
 
-            # Initialize Ollama LLM
+            # Initialize LLM
             try:
-                llm = Ollama(model="llama2", base_url="http://localhost:11434")
+                llm = Ollama(model="qwen2.5", base_url="http://localhost:11434")
             except Exception as e:
                 return Response(
-                    {'error': 'Failed to connect to Ollama. Please ensure Ollama is running with llama2 model.'},
+                    {'error': 'Failed to connect to Ollama. Please ensure Ollama is running with qwen2.5 model.'},
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
 
-            # Create prompt template - enhanced with guard clauses
+            # Prompt template
             prompt = ChatPromptTemplate.from_template("""You are a helpful assistant. Answer based ONLY on the context provided.
 
 RULES:
@@ -82,30 +83,46 @@ Question: {input}
 Answer:
 """)
 
-            # Create document chain
+            # Chain setup
             document_chain = create_stuff_documents_chain(llm, prompt)
-
-            # Initialize retriever with limit to avoid irrelevant chunks
             retriever = db.as_retriever(search_kwargs={"k": 3})
-
-            # Create retrieval chain
             retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
-            # Get response
+            # Run chain
             response = retrieval_chain.invoke({"input": user_input})
             ai_response = response.get("answer") or response.get("output") or str(response)
+            sources = response.get("context", [])
 
-            # Save chat to database
+            # Format citations (New version)
+            citations = []
+            for doc in sources:
+                meta = doc.metadata
+                page = meta.get('page', 'Unknown')
+
+                # Get the full path and extract only the filename
+                full_path = meta.get('source')
+                source_filename = os.path.basename(full_path) if full_path else 'PDF'
+
+                citations.append(f"{source_filename}, page {page}")
+
+            citations_text = "\nCitations:\n" + "\n".join(set(citations)) if citations else ""
+            full_response = f"{ai_response}{citations_text}"
+
+            # Track history
+            chat_history.append(f"User: {user_input}")
+            chat_history.append(f"Assistant: {full_response}")
+
+            # Save to DB
             chat = Chat.objects.create(
                 user=request.user,
                 leader=leader,
                 user_input=user_input,
-                ai_response=ai_response,
+                ai_response=full_response,
                 session_id=session_id
             )
 
             return Response({
-                'response': ai_response,
+                'response': full_response,
                 'session_id': session_id,
                 'chat_id': chat.id
             })
@@ -130,7 +147,7 @@ Answer:
                 leader=leader,
                 session_id=session_id,
                 user=request.user
-            ).order_by('timestamp') 
+            ).order_by('timestamp')
 
             serializer = ChatSerializer(chats, many=True)
             return Response(serializer.data)
@@ -150,7 +167,6 @@ Answer:
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Delete chats for this user, leader, and session
             deleted_count = Chat.objects.filter(
                 leader=leader,
                 user=request.user,
