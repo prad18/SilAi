@@ -37,48 +37,12 @@ const Login = ({ login, isAuthenticated }) => {
   
         <div className="login-container">
           <div className="login-card">
-            <form className="login-form" onSubmit={handlingSubmit}>
-              <div className="form-group">
-                <label>Login</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={email}
-                  onChange={handlingInput}
-                  placeholder="Email"
-                  className="form-control"
-                />
-              </div>
-  
-              <div className="form-group">
-                <input
-                  type="password"
-                  name="password"
-                  value={password}
-                  onChange={handlingInput}
-                  placeholder="Password"
-                  className="form-control"
-                />
-              </div>
-  
-              <button className="login-button" type="submit">LOGIN</button>
-            </form>
 
-            {error && <div className="error-message">{error}</div>}
-
-            <div className="divider">or</div>
-  
+            {error && <div className="error-message">{error}</div>}  
             <button className="google-button" type="button" onClick={reachGoogle}>
             <img src="/google.svg" alt="Google" className="google-icon" />
             <span>Sign in with Google</span>
             </button>
-  
-            <p className="forgot-password">
-              Forgot your password? <Link to="../reset-password/">Reset Password</Link>
-            </p>
-            <p className="signup-link">
-              Don't have an account? <Link to="../signup/">Signup</Link>
-            </p>
           </div>
         </div>
       </div>

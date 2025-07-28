@@ -103,7 +103,6 @@ const Navbar = ({ user,logout }) => {
           {showDropdown && (
             <div className="profile-dropdown">
               <button onClick={handleMyAccount}>My Account</button>
-              <button onClick={handleChangePassword}>Change Password</button>
               <button onClick={handleLogout}>Logout</button>
             </div>
           )}
