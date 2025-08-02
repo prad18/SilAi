@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import Chat from './Chat';
+import { useNavigate } from 'react-router-dom';
 import "../css/Leader.css"; 
+
 const Leader = ({ leader }) => {
-    const [showChat, setShowChat] = useState(false);
+    const navigate = useNavigate();
     const [imageError, setImageError] = useState(false);
 
     useEffect(() => {
@@ -12,12 +13,8 @@ const Leader = ({ leader }) => {
     }, [leader]);
 
     const handleChatClick = () => {
-        console.log('Chat button clicked, current showChat:', showChat);
-        setShowChat(!showChat);
-    };
-
-    const handleCloseChat = () => {
-        setShowChat(false);
+        console.log('Chat button clicked, navigating to chat page for leader:', leader.id);
+        navigate(`/chat/${leader.id}`);
     };
 
     const handleImageError = (e) => {
@@ -48,34 +45,22 @@ const Leader = ({ leader }) => {
     };
 
     return (
-        <>
-            <div key={leader.id} className="person-box">
-                <img
-                  src={getImageSrc()}
-                  alt={leader.name}
-                  className="person-image"
-                  onError={handleImageError}
-                  onLoad={() => console.log('Image loaded successfully:', getImageSrc())}
-                />
-                <p className="person-name">{leader.name}</p>
-                <button 
-                  className="chat-button"
-                  onClick={handleChatClick}
-                >
-                  Chat
-                </button>
-            </div>
-            
-            {/* Chat Modal - Only render when showChat is true */}
-            {showChat && (
-                <div className="chat-modal">
-                    <div className="chat-modal-content">
-                        <button className="close-button" onClick={handleCloseChat}>×</button>
-                        <Chat leader={leader} />
-                    </div>
-                </div>
-            )}
-        </>
+        <div key={leader.id} className="person-box">
+            <img
+              src={getImageSrc()}
+              alt={leader.name}
+              className="person-image"
+              onError={handleImageError}
+              onLoad={() => console.log('Image loaded successfully:', getImageSrc())}
+            />
+            <p className="person-name">{leader.name}</p>
+            <button 
+              className="chat-button"
+              onClick={handleChatClick}
+            >
+              Chat
+            </button>
+        </div>
     );
 };
 

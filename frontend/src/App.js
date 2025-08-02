@@ -20,7 +20,8 @@ import ChangePassword from "./Pages/ChangePassword";
 import ResetPassword from "./Pages/ResetPassword";
 import ResetPasswordConfirm from "./Pages/ResetPasswordConfirm";
 import EmailVerification from "./Pages/EmailVerification";
-import UserProfile from "./Pages/UserProfile"; 
+import UserProfile from "./Pages/UserProfile";
+import ChatPage from "./Pages/ChatPage";
 
 // Store
 import Store from "./Store";
@@ -96,6 +97,15 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <UserProfile />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/chat/:leaderId"
+              element={
+                <PrivateRoute>
+                  <ChatPage />
                 </PrivateRoute>
               }
             />

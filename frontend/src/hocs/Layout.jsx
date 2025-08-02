@@ -14,15 +14,19 @@ const Layout = (props) => {
         const code = values.code;
         if (code) {
             props.googleLogin(code);
-        } else {
+        } else if (!props.isAuthenticated && localStorage.getItem('access')) {
+            // Only verify and get user if we have a token but aren't authenticated
             props.verify();
             props.getUser();
         }
-    }, [location]);
+    }, [location.search]); // Only depend on search params, not the full location
+
+    // Check if current route is ChatPage - hide navbar for chat pages
+    const isChatPage = location.pathname.startsWith('/chat/');
 
     return (
         <div>
-            {props.isAuthenticated && <Navbar />}
+            {props.isAuthenticated && !isChatPage && <Navbar />}
             {props.message ? <Alert message={props.message} /> : null}
             {props.children}
         </div>

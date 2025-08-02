@@ -16,36 +16,37 @@ const Navbar = ({ user,logout }) => {
 
     useEffect(() => {
         const fetchData = async () => {
-        try {
-            const config = {
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${access}`,
-            },
-            };
+            if (!access || !isAuthenticated) return;
+            
+            try {
+                const config = {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${access}`,
+                    },
+                };
 
-            const [profileResponse] = await Promise.all([
-            axios.get(`${process.env.REACT_APP_API_URL}/accounts/profile/`, config),
-            ]);
+                const [profileResponse] = await Promise.all([
+                    axios.get(`${process.env.REACT_APP_API_URL}/accounts/profile/`, config),
+                ]);
 
-            // Set profile image
-            if (profileResponse.data.profile_image) {
-            setUserProfileImage(`${process.env.REACT_APP_API_URL}${profileResponse.data.profile_image}`);
-            } else {
-            setUserProfileImage(null);
+                // Set profile image
+                if (profileResponse.data.profile_image) {
+                    setUserProfileImage(`${process.env.REACT_APP_API_URL}${profileResponse.data.profile_image}`);
+                } else {
+                    setUserProfileImage(null);
+                }
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                if (error.response && error.response.status === 401) {
+                    navigate("/login");
+                }
             }
-
-
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            if (error.response && error.response.status === 401) {
-            navigate("/login");
-            }
-        }
         };
 
         fetchData();
-    }, [access, isAuthenticated, navigate]);
+    }, [access, isAuthenticated, navigate]); // Add proper dependencies
 
 
   // Close dropdown when clicking outside
@@ -103,6 +104,7 @@ const Navbar = ({ user,logout }) => {
           {showDropdown && (
             <div className="profile-dropdown">
               <button onClick={handleMyAccount}>My Account</button>
+              <button onClick={handleChangePassword}>Change Password</button>
               <button onClick={handleLogout}>Logout</button>
             </div>
           )}
