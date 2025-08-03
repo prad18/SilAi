@@ -167,8 +167,8 @@ REST_FRAMEWORK = {
 # simple jwt
 from datetime import timedelta
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(hours=2),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(hours=6),
 }
 
 # rest auth
@@ -184,6 +184,7 @@ REST_AUTH = {
 # cors headers
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://192.168.1.100:3000",
 ]
 CORS_ALLOW_CREDENTIALS = True
 

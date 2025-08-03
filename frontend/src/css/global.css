@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap');
+
+/* Root Variables */
+:root {
+  --pixel-font: 'Pixelify Sans', normal, sans-serif;
+}
+
+/* Global background for the entire app */
+body, html {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)),
+              url('../../public/bg.png') center/cover no-repeat fixed;
+  background-attachment: fixed;
+  font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+}
+
+/* Ensure the root div takes full height */
+#root {
+  min-height: 100vh;
+}
+
+/* Remove individual page backgrounds */
+.page-container {
+  min-height: 100vh;
+  /* Remove individual background declarations */
+  padding-top: 10px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}

@@ -21,6 +21,15 @@ export const login = ( email, password ) => async dispatch => {
             type: TYPE.LOGIN_SUCCESS,
             payload: res.data
         })
+        
+        // Try to fetch user data, but don't fail the login if this fails
+        try {
+            await dispatch(getUser());
+        } catch (userError) {
+            console.warn("Failed to fetch user data after login:", userError);
+            // Don't throw this error - login was still successful
+        }
+        
         dispatch({
             type: TYPE.SHOW_ALERT,
             payload: {
@@ -28,8 +37,10 @@ export const login = ( email, password ) => async dispatch => {
                 type: "success"
             }
         })
+        return res.data; // Return success data
     } catch (err) {
-        if (err.response && err.response.data && err.response.data.detail === "A user with this email already exists") {
+        console.error("Login error:", err?.response?.data || err?.message || err);
+        if (err?.response?.data?.detail === "A user with this email already exists") {
             throw new Error("A user with this email already exists");
         }
         dispatch ({
@@ -38,10 +49,11 @@ export const login = ( email, password ) => async dispatch => {
         dispatch({
             type: TYPE.SHOW_ALERT,
             payload: {
-                message: "Login failed. Please check your credentials.",
+                message: err?.response?.data?.detail || err?.message || "Login failed. Please check your credentials.",
                 type: "error"
             }
         })
+        throw err; // Re-throw the error for component handling
     }
 }
 

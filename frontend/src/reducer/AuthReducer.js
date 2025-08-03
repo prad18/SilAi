@@ -129,6 +129,11 @@ const AuthReducer = (state=initialState, action) => {
                 ...state,
                 message: ""
             }
+        case TYPE.SHOW_ALERT:
+            return {
+                ...state,
+                message: payload.message
+            }
         case TYPE.GUEST_VIEW:
             return {
                 ...state

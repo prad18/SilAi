@@ -13,15 +13,23 @@ const Login = ({ login, isAuthenticated }) => {
     const [ error, setError ] = useState(null);
     const { email, password } = formData;
     const handlingInput = (e) => setFormData({...formData, [e.target.name]: e.target.value});
-    const handlingSubmit = (e) => {
+    const handlingSubmit = async (e) => {
         e.preventDefault();
-        login( email, password ).catch(err => {
-          if (err.response && err.response.data && err.response.data.detail) {
-              setError(err.response.data.detail);
-          } else {
-              setError("An error occurred. Please try again.");
-          }
-      });
+        setError(null); // Clear previous errors
+        
+        try {
+            await login(email, password);
+            // Login successful - user will be redirected by the Navigate component
+        } catch (err) {
+            // Handle login errors
+            if (err.response && err.response.data && err.response.data.detail) {
+                setError(err.response.data.detail);
+            } else if (err.response && err.response.data && err.response.data.non_field_errors) {
+                setError(err.response.data.non_field_errors[0]);
+            } else {
+                setError("An error occurred. Please try again.");
+            }
+        }
     }
     const reachGoogle = () => {
         const clientID = `${process.env.REACT_APP_CLIENT_ID}`;
@@ -67,12 +75,11 @@ const Login = ({ login, isAuthenticated }) => {
             {error && <div className="error-message">{error}</div>}
 
             <div className="divider">or</div>
-  
+
             <button className="google-button" type="button" onClick={reachGoogle}>
             <img src="/google.svg" alt="Google" className="google-icon" />
             <span>Sign in with Google</span>
             </button>
-  
             <p className="forgot-password">
               Forgot your password? <Link to="../reset-password/">Reset Password</Link>
             </p>

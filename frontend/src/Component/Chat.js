@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-import './Chat.css';
+import '../css/Chat.css'; // Assuming you have a CSS file for styling
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const MAX_MESSAGES = 20; // Maximum number of messages before prompting to clear

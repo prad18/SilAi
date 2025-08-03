@@ -18,6 +18,7 @@ class Leader(models.Model):
     pdf_file = models.FileField(upload_to='leader_pdfs/', null=True, blank=True, 
                                help_text="Upload PDF documents related to this leader")
     pkl_file_path = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField() # This is causing the error
 
     def __str__(self):
         return self.name
