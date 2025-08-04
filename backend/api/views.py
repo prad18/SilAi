@@ -12,6 +12,7 @@ import uuid
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import LLMChain
 
 class LeaderList(generics.ListAPIView):
     queryset = Leader.objects.all()
@@ -182,6 +183,97 @@ Answer:
             print(f"Error in clear_chat: {str(e)}")
             return Response(
                 {'error': f'Failed to clear chat history: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def suggestions(self, request, pk=None):
+        """Generate AI-powered suggested questions based on the current chat context"""
+        leader = self.get_object()
+        latest_user_message = request.data.get('latest_user_message', '')
+        
+        if not latest_user_message:
+            return Response({'error': 'latest_user_message is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Load the FAISS index
+            pkl_path = os.path.join(settings.MEDIA_ROOT, leader.pkl_file_path)
+            if not os.path.exists(pkl_path):
+                return Response(
+                    {'error': 'Leader knowledge base not found. Please ensure the PDF has been processed.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            with open(pkl_path, 'rb') as f:
+                db = pickle.load(f)
+
+            # Initialize LLM
+            try:
+                llm = Ollama(model="qwen2.5", base_url="http://localhost:11434")
+            except Exception as e:
+                return Response(
+                    {'error': 'Failed to connect to Ollama. Please ensure Ollama is running with qwen2.5 model.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+
+            # Retrieve relevant documents for the latest message
+            retriever = db.as_retriever(search_kwargs={"k": 3})
+            relevant_docs = retriever.get_relevant_documents(latest_user_message)
+            
+            # Extract context from relevant documents
+            context = "\n".join([doc.page_content for doc in relevant_docs[:3]])
+
+            # Prompt template for generating suggestions
+            suggestion_prompt = ChatPromptTemplate.from_template("""Based on the user's latest message and the provided context about the historical figure, generate 2-3 helpful follow-up questions that would naturally continue the conversation.
+
+The questions should:
+- Be directly related to the historical figure and context
+- Build upon the user's current inquiry
+- Be specific and engaging
+- Help users explore different aspects of the figure's life, work, or impact
+
+Context about the historical figure:
+{context}
+
+User's latest message: {latest_user_message}
+
+Generate exactly 2-3 follow-up questions, one per line, without numbering or bullet points:""")
+
+            # Create LLM chain for suggestions
+            suggestion_chain = LLMChain(llm=llm, prompt=suggestion_prompt)
+            
+            # Generate suggestions
+            result = suggestion_chain.run(
+                context=context,
+                latest_user_message=latest_user_message
+            )
+            
+            # Parse the suggestions (split by newlines and clean up)
+            suggestions = [
+                line.strip() 
+                for line in result.strip().split('\n') 
+                if line.strip() and not line.strip().startswith(('-', '*', '•'))
+            ]
+            
+            # Ensure we have 2-3 suggestions
+            suggestions = suggestions[:3]  # Limit to max 3
+            
+            # Fallback suggestions if AI didn't generate proper ones
+            if len(suggestions) < 2:
+                suggestions = [
+                    f"What were {leader.name}'s major achievements?",
+                    f"How did {leader.name} influence their era?",
+                    f"What challenges did {leader.name} face?"
+                ]
+
+            return Response({
+                'suggestions': suggestions
+            })
+
+        except Exception as e:
+            print(f"Error in suggestions endpoint: {str(e)}")
+            return Response(
+                {'error': f'An error occurred while generating suggestions: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

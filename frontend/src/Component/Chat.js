@@ -22,6 +22,8 @@ const Chat = ({ leader }) => {
     });
     const [isLoading, setIsLoading] = useState(false);
     const [showClearPrompt, setShowClearPrompt] = useState(false);
+    const [suggestions, setSuggestions] = useState([]);
+    const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
     const messagesEndRef = useRef(null);
 
     // Get auth token
@@ -31,6 +33,62 @@ const Chat = ({ leader }) => {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
         };
+    };
+
+    // Fetch AI-generated suggestions based on the latest user message
+    const fetchSuggestions = useCallback(async (latestUserMessage) => {
+        if (!latestUserMessage) {
+            console.log('No latest user message provided for suggestions');
+            return;
+        }
+        
+        console.log('=== FETCHING SUGGESTIONS ===');
+        console.log('Latest user message:', latestUserMessage);
+        console.log('Leader ID:', leader.id);
+        console.log('API Base URL:', API_BASE_URL);
+        
+        setIsSuggestionsLoading(true);
+        try {
+            const url = `${API_BASE_URL}/api/leaders/${leader.id}/suggestions/`;
+            console.log('Suggestions URL:', url);
+            
+            const response = await axios.post(url, {
+                latest_user_message: latestUserMessage
+            }, {
+                headers: getAuthHeader()
+            });
+            
+            console.log('Suggestions response:', response.data);
+            const fetchedSuggestions = response.data.suggestions || [];
+            console.log('Parsed suggestions:', fetchedSuggestions);
+            setSuggestions(fetchedSuggestions);
+        } catch (error) {
+            console.error('Error fetching suggestions:', error);
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
+            
+            // Set fallback suggestions if API fails
+            const fallbackSuggestions = [
+                `What were ${leader.name}'s major achievements?`,
+                `How did ${leader.name} influence their era?`,
+                `What challenges did ${leader.name} face?`
+            ];
+            console.log('Using fallback suggestions:', fallbackSuggestions);
+            setSuggestions(fallbackSuggestions);
+        } finally {
+            setIsSuggestionsLoading(false);
+            console.log('=== SUGGESTIONS FETCH COMPLETE ===');
+        }
+    }, [leader.id, leader.name, API_BASE_URL]);
+
+    // Handle suggestion click - fills input and sends the message
+    const handleSuggestionClick = (suggestion) => {
+        setInputMessage(suggestion);
+        // Automatically send the suggestion as a message
+        setTimeout(() => {
+            const syntheticEvent = { preventDefault: () => {} };
+            handleSendMessage(syntheticEvent, suggestion);
+        }, 100);
     };
 
     const loadChatHistory = useCallback(async () => {
@@ -54,12 +112,27 @@ const Chat = ({ leader }) => {
                 ]);
                 console.log('Formatted messages:', formattedMessages);
                 setMessages(formattedMessages);
+
+                // Fetch suggestions based on the last user message
+                const lastUserMessage = response.data[response.data.length - 1]?.user_input;
+                console.log('Last user message for suggestions:', lastUserMessage);
+                if (lastUserMessage) {
+                    console.log('Fetching suggestions based on chat history');
+                    fetchSuggestions(lastUserMessage);
+                } else {
+                    console.log('No last user message found, using generic prompt');
+                    fetchSuggestions(`Tell me about ${leader.name}`);
+                }
             } else {
                 console.log('No chat history found, showing welcome message');
                 setMessages([{
                     type: 'ai',
                     content: `Hello! I'm ${leader.name}. How can I help you today?`
                 }]);
+                
+                // Fetch initial suggestions with a generic prompt
+                console.log('Fetching initial suggestions for new chat');
+                fetchSuggestions(`Tell me about ${leader.name}`);
             }
         } catch (error) {
             console.error('Error loading chat history:', error);
@@ -72,8 +145,11 @@ const Chat = ({ leader }) => {
                 type: 'ai',
                 content: `Hello! I'm ${leader.name}. How can I help you today?`
             }]);
+            
+            // Fetch fallback suggestions even on error
+            fetchSuggestions(`Tell me about ${leader.name}`);
         }
-    }, [leader.id, sessionId, API_BASE_URL]);
+    }, [leader.id, sessionId, API_BASE_URL, fetchSuggestions]);
 
     useEffect(() => {
         console.log('Chat component mounted with leader:', leader);
@@ -89,13 +165,13 @@ const Chat = ({ leader }) => {
         scrollToBottom();
     }, [messages]);
 
-    const handleSendMessage = async (e) => {
+    const handleSendMessage = async (e, suggestionText = null) => {
         e.preventDefault();
-        if (!inputMessage.trim()) return;
+        const messageToSend = suggestionText || inputMessage;
+        if (!messageToSend.trim()) return;
 
-        const userMessage = inputMessage;
         setInputMessage('');
-        setMessages(prev => [...prev, { type: 'user', content: userMessage }]);
+        setMessages(prev => [...prev, { type: 'user', content: messageToSend }]);
         setIsLoading(true);
 
         try {
@@ -103,13 +179,16 @@ const Chat = ({ leader }) => {
             console.log('Sending message to:', url);
             
             const response = await axios.post(url, {
-                message: userMessage,
+                message: messageToSend,
                 session_id: sessionId
             }, {
                 headers: getAuthHeader()
             });
 
             setMessages(prev => [...prev, { type: 'ai', content: response.data.response }]);
+
+            // Fetch new suggestions based on the message just sent
+            fetchSuggestions(messageToSend);
 
             // Check if we need to show the clear prompt
             if (messages.length >= MAX_MESSAGES) {
@@ -146,11 +225,16 @@ const Chat = ({ leader }) => {
                 type: 'ai',
                 content: `Hello! I'm ${leader.name}. How can I help you today?`
             }]);
+            
             // Generate new session ID and store it
             const newSessionId = uuidv4();
             localStorage.setItem(`chat_session_${leader.id}`, newSessionId);
             setSessionId(newSessionId);
             setShowClearPrompt(false);
+            
+            // Reset and fetch new suggestions
+            setSuggestions([]);
+            fetchSuggestions(`Tell me about ${leader.name}`);
         } catch (error) {
             console.error('Error clearing chat:', error);
             setMessages(prev => [...prev, { 
@@ -167,6 +251,37 @@ const Chat = ({ leader }) => {
                 <button onClick={handleClearChat} className="clear-button">
                     Clear Chat
                 </button>
+            </div>
+            
+            {/* Suggestions Section */}
+            <div className="suggestions-container">
+                {/* Debug info - remove this later */}
+                <div style={{fontSize: '12px', color: '#666', marginBottom: '5px'}}>
+                    Debug: Suggestions count: {suggestions.length}, Loading: {isSuggestionsLoading.toString()}
+                </div>
+                
+                {isSuggestionsLoading ? (
+                    <div className="suggestions-loading">
+                        <span>🤔 Thinking of questions...</span>
+                    </div>
+                ) : suggestions.length > 0 ? (
+                    <div className="suggestions-scroll">
+                        {suggestions.map((suggestion, index) => (
+                            <button
+                                key={index}
+                                className="suggestion-chip"
+                                onClick={() => handleSuggestionClick(suggestion)}
+                                disabled={isLoading}
+                            >
+                                💬 {suggestion}
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <div style={{padding: '10px', color: '#999', fontSize: '14px'}}>
+                        No suggestions available
+                    </div>
+                )}
             </div>
             
             <div className="messages-container">
