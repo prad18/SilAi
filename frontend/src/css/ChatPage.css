@@ -87,6 +87,11 @@
   font-size: 0.9rem;
 }
 
+/* Desktop layout for buttons */
+.chat-buttons-row {
+  display: contents; /* This makes the children behave as if the wrapper doesn't exist */
+}
+
 /* Messages Container - Matching person-box glassmorphism */
 .messages-container {
   flex: 1;
@@ -164,6 +169,20 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
   border-bottom-left-radius: 6px;
+  position: relative;
+}
+
+/* Streaming indicator */
+.message.ai .message-content.streaming::after {
+  content: '▋';
+  animation: blink 1s infinite;
+  color: #4f46e5;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
 
 /* Error Messages */
@@ -419,17 +438,18 @@
   
   .chat-header {
     margin: 0 0.5rem 0.5rem 0.5rem;
-    padding: 0.875rem 1rem;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    padding: 1rem;
+    flex-direction: column;
+    gap: 1rem;
     border-radius: 15px;
+    align-items: center;
   }
   
   .leader-info {
-    order: 2;
+    order: 1;
     width: 100%;
-    justify-content: flex-start;
-    margin-top: 0.5rem;
+    justify-content: center;
+    margin: 0;
     gap: 0.75rem;
   }
   
@@ -438,18 +458,61 @@
     height: 45px;
   }
   
+  .leader-details {
+    text-align: center;
+  }
+  
+  .leader-details h2 {
+    font-size: 1.3rem;
+  }
+  
+  .chat-buttons-row {
+    order: 2;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    gap: 1rem;
+  }
+  
   .back-button {
-    order: 1;
+    flex: 1;
     padding: 12px 18px;
     font-size: 0.9rem;
     min-height: 44px; /* Better touch target */
   }
   
   .clear-chat-button {
-    order: 3;
+    flex: 1;
     padding: 12px 18px;
     font-size: 0.9rem;
     min-height: 44px; /* Better touch target */
+  }
+
+  /* Mobile suggestions styling */
+  .suggestions-container {
+    margin: 0 0.5rem 0.75rem 0.5rem;
+    padding: 0.75rem;
+    max-height: 100px;
+    min-height: 50px;
+    border-radius: 15px;
+  }
+
+  .suggestions-scroll {
+    gap: 0.4rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .suggestion-chip {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    border-radius: 15px;
+    min-height: 36px; /* Better touch target */
+    gap: 0.25rem;
+  }
+
+  .suggestions-loading {
+    height: 36px;
+    font-size: 0.85rem;
   }
   
   .messages-container {
@@ -547,12 +610,45 @@
     border-radius: 10px;
   }
 
+  .streaming-toggle-button {
+    padding: 8px 14px;
+    font-size: 0.75rem;
+    border-radius: 10px;
+  }
+
   .messages-container {
     margin: 0 0.25rem;
   }
 
   .messages-wrapper {
     padding: 0.75rem;
+  }
+
+  /* Smaller mobile suggestions styling */
+  .suggestions-container {
+    margin: 0 0.25rem 0.5rem 0.25rem;
+    padding: 0.5rem;
+    max-height: 85px;
+    min-height: 45px;
+    border-radius: 12px;
+  }
+
+  .suggestions-scroll {
+    gap: 0.3rem;
+    padding-bottom: 0.2rem;
+  }
+
+  .suggestion-chip {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.75rem;
+    border-radius: 12px;
+    min-height: 32px;
+    gap: 0.2rem;
+  }
+
+  .suggestions-loading {
+    height: 32px;
+    font-size: 0.8rem;
   }
   
   .message-content {
@@ -622,6 +718,33 @@
     padding: 0.625rem 0.75rem 0.75rem;
   }
 
+  /* Extra small mobile suggestions styling */
+  .suggestions-container {
+    margin: 0 0.25rem 0.4rem 0.25rem;
+    padding: 0.4rem;
+    max-height: 75px;
+    min-height: 40px;
+    border-radius: 10px;
+  }
+
+  .suggestions-scroll {
+    gap: 0.25rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .suggestion-chip {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.7rem;
+    border-radius: 10px;
+    min-height: 28px;
+    gap: 0.15rem;
+  }
+
+  .suggestions-loading {
+    height: 28px;
+    font-size: 0.75rem;
+  }
+
   .input-wrapper {
     padding: 10px 12px;
   }
@@ -630,14 +753,20 @@
 /* Suggestions Styles - Matching the app's glassmorphism design */
 .suggestions-container {
   margin: 0 1rem 1rem 1rem;
-  background: linear-gradient(500deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
-  backdrop-filter: blur(15px);
+  background: linear-gradient(500deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(20px);
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 1rem;
   max-height: 120px;
   min-height: 60px;
+  transition: all 0.3s ease;
+}
+
+.suggestions-container:hover {
+  background: linear-gradient(500deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.06));
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .suggestions-loading {
@@ -677,31 +806,35 @@
 
 .suggestion-chip {
   flex-shrink: 0;
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.8), rgba(59, 130, 246, 0.8));
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.85), rgba(59, 130, 246, 0.85));
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
+  padding: 0.6rem 1.1rem;
+  border-radius: 25px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.9rem;
+  font-weight: 500;
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.4rem;
   font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
 }
 
 .suggestion-chip:hover:not(:disabled) {
   background: linear-gradient(135deg, rgba(79, 70, 229, 1), rgba(59, 130, 246, 1));
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4);
-  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .suggestion-chip:active:not(:disabled) {
-  transform: translateY(0);
+  transform: translateY(-1px) scale(0.98);
+  box-shadow: 0 3px 12px rgba(79, 70, 229, 0.3);
 }
 
 .suggestion-chip:disabled {

@@ -181,7 +181,7 @@ body, html {
   }
 
   .scroll-container {
-    gap: 8px;
+    gap: 15px;
     justify-content: center;
   }
 }
@@ -204,7 +204,7 @@ body, html {
   }
 
   .scroll-container {
-    gap: 6px;
+    gap: 12px;
     justify-content: center;
   }
 }

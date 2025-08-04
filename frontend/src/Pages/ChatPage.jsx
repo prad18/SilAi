@@ -111,7 +111,7 @@ const ChatPage = () => {
         // Automatically send the suggestion as a message
         setTimeout(() => {
             const syntheticEvent = { preventDefault: () => {} };
-            handleSendMessage(syntheticEvent, suggestion);
+            handleSendMessageStream(syntheticEvent, suggestion);
         }, 100);
     };
 
@@ -314,6 +314,136 @@ const ChatPage = () => {
         }
     };
 
+    // New streaming message handler
+    const handleSendMessageStream = async (e, suggestionText = null) => {
+        e.preventDefault();
+        const messageToSend = suggestionText || inputMessage;
+        if (!messageToSend.trim()) return;
+
+        setInputMessage('');
+        setMessages(prev => [...prev, { type: 'user', content: messageToSend }]);
+        setIsLoading(true);
+
+        // Add empty AI message that will be updated as stream comes in
+        setMessages(prev => [...prev, { 
+            type: 'ai', 
+            content: '',
+            citations: [],
+            streaming: true 
+        }]);
+
+        try {
+            const url = `${API_BASE_URL}/api/leaders/${leaderId}/chat_stream/`;
+            console.log('Sending streaming message to:', url);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    ...getAuthHeader(),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: messageToSend,
+                    session_id: sessionId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            
+                            if (data.error) {
+                                setMessages(prev => {
+                                    const newMessages = [...prev];
+                                    // Find the last streaming AI message and update it
+                                    for (let i = newMessages.length - 1; i >= 0; i--) {
+                                        if (newMessages[i].type === 'ai' && newMessages[i].streaming) {
+                                            newMessages[i] = {
+                                                type: 'error',
+                                                content: `Error: ${data.error}`
+                                            };
+                                            break;
+                                        }
+                                    }
+                                    return newMessages;
+                                });
+                                break;
+                            }
+
+                            // Update the streaming message
+                            setMessages(prev => {
+                                const newMessages = [...prev];
+                                const { mainContent, citations } = parseResponse(data.content);
+                                // Find the last streaming AI message and update it
+                                for (let i = newMessages.length - 1; i >= 0; i--) {
+                                    if (newMessages[i].type === 'ai' && newMessages[i].streaming !== undefined) {
+                                        newMessages[i] = {
+                                            type: 'ai',
+                                            content: mainContent,
+                                            citations: citations,
+                                            streaming: !data.done
+                                        };
+                                        break;
+                                    }
+                                }
+                                return newMessages;
+                            });
+
+                            // If streaming is complete, fetch suggestions
+                            if (data.done && leader) {
+                                fetchSuggestions(messageToSend);
+                            }
+
+                        } catch (parseError) {
+                            console.error('Error parsing streaming data:', parseError);
+                        }
+                    }
+                }
+            }
+
+            // Check if we need to show the clear prompt
+            if (messages.length >= MAX_MESSAGES) {
+                setShowClearPrompt(true);
+            }
+
+        } catch (error) {
+            console.error('Error in streaming chat:', error);
+            setMessages(prev => {
+                const newMessages = [...prev];
+                // Find the last streaming AI message and update it with error
+                for (let i = newMessages.length - 1; i >= 0; i--) {
+                    if (newMessages[i].type === 'ai' && newMessages[i].streaming !== undefined) {
+                        newMessages[i] = {
+                            type: 'error',
+                            content: `Error: ${error.message || 'Unknown error occurred'}`
+                        };
+                        break;
+                    }
+                }
+                return newMessages;
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // Clear chat function - EXACT same as original Chat.js
     const handleClearChat = async () => {
         try {
@@ -349,7 +479,7 @@ const ChatPage = () => {
     const handleKeyPress = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSendMessage(e);
+            handleSendMessageStream(e);
         }
     };
 
@@ -382,10 +512,6 @@ const ChatPage = () => {
         <div className="chat-page">
             {/* Header */}
             <div className="chat-header">
-                <button className="back-button" onClick={goBack}>
-                    ← Back to Home
-                </button>
-                
                 <div className="leader-info">
                     <img 
                         src={getImageSrc(leader?.image)} 
@@ -396,21 +522,27 @@ const ChatPage = () => {
                     />
                     <div className="leader-details">
                         <h2>{leader?.name || 'Loading...'}</h2>
-                        <p className="leader-description">{leader?.description || 'Loading leader information...'}</p>
+                        <p className="leader-description">{leader?.bio || 'Loading leader information...'}</p>
                     </div>
                 </div>
                 
-                <button className="clear-chat-button" onClick={handleClearChat}>
-                    🗑️ Clear Chat
-                </button>
+                <div className="chat-buttons-row">
+                    <button className="back-button" onClick={goBack}>
+                        ← Back to Home
+                    </button>
+                    
+                    <button className="clear-chat-button" onClick={handleClearChat}>
+                        🗑️ Clear Chat
+                    </button>
+                </div>
             </div>
 
             {/* Suggestions Section */}
             <div className="suggestions-container">
-                {/* Debug info - remove this later */}
+                {/* Debug info - remove this later
                 <div style={{fontSize: '12px', color: '#666', marginBottom: '5px'}}>
                     Debug: Suggestions count: {suggestions.length}, Loading: {isSuggestionsLoading.toString()}
-                </div>
+                </div> */}
                 
                 {isSuggestionsLoading ? (
                     <div className="suggestions-loading">
@@ -441,7 +573,7 @@ const ChatPage = () => {
                 <div className="messages-wrapper">
                     {messages.map((message, index) => (
                         <div key={index} className={`message ${message.type}`}>
-                            <div className="message-content">
+                            <div className={`message-content ${message.streaming ? 'streaming' : ''}`}>
                                 {message.content}
                                 {message.citations && message.citations.length > 0 && (
                                     <div className="citations">
@@ -458,17 +590,6 @@ const ChatPage = () => {
                             </div>
                         </div>
                     ))}
-                    {isLoading && (
-                        <div className="message ai">
-                            <div className="message-content">
-                                <div className="typing-indicator">
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     {showClearPrompt && (
                         <div className="message system">
                             <div className="message-content">
@@ -485,7 +606,7 @@ const ChatPage = () => {
 
             {/* Input Container - Same as original but with updated styling */}
             <div className="input-container">
-                <form onSubmit={handleSendMessage} className="message-form">
+                <form onSubmit={handleSendMessageStream} className="message-form">
                     <div className="input-wrapper">
                         <input
                             type="text"
