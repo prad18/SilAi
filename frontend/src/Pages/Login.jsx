@@ -1,16 +1,46 @@
 import React from "react";
-import { Link, Navigate } from "react-router-dom";
-import { useState } from "react";
+import { Link, Navigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { connect } from "react-redux";
 import { login } from "../reducer/Actions";
 import "../css/login.css"; 
 
 const Login = ({ login, isAuthenticated }) => {
+    const location = useLocation();
     const [ formData, setFormData ] = useState ({
         email: "",
         password: ""
     });
     const [ error, setError ] = useState(null);
+    const [ successMessage, setSuccessMessage ] = useState(null);
+    
+    // Check for URL parameters on component mount
+    useEffect(() => {
+        const urlParams = new URLSearchParams(location.search);
+        const verified = urlParams.get('verified');
+        const error = urlParams.get('error');
+        const message = urlParams.get('message');
+        
+        if (verified === 'true') {
+            setSuccessMessage(message || 'Email verified successfully! You can now login.');
+            setError(null);
+        } else if (error) {
+            let errorMessage = 'Email verification failed.';
+            switch (error) {
+                case 'invalid_key':
+                    errorMessage = 'Invalid verification link. Please try again or request a new verification email.';
+                    break;
+                case 'confirmation_failed':
+                    errorMessage = 'Email confirmation failed. Please try again.';
+                    break;
+                default:
+                    errorMessage = 'Email verification failed. Please try again.';
+            }
+            setError(errorMessage);
+            setSuccessMessage(null);
+        }
+    }, [location.search]);
+    
     const { email, password } = formData;
     const handlingInput = (e) => setFormData({...formData, [e.target.name]: e.target.value});
     const handlingSubmit = async (e) => {
@@ -73,6 +103,7 @@ const Login = ({ login, isAuthenticated }) => {
             </form>
 
             {error && <div className="error-message">{error}</div>}
+            {successMessage && <div className="success-message">{successMessage}</div>}
 
             <div className="divider">or</div>
 

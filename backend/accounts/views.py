@@ -16,6 +16,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 
+# Import for email confirmation
+from allauth.account.models import EmailConfirmation, EmailConfirmationHMAC
+from allauth.account.utils import perform_login
+from django.contrib.auth import login
+from django.conf import settings
+
 
 
 class GoogleLogin(SocialLoginView): # if you want to use Authorization Code Grant, use this
@@ -24,7 +30,25 @@ class GoogleLogin(SocialLoginView): # if you want to use Authorization Code Gran
     client_class = OAuth2Client
 
 def email_confirmation(request, key):
-    return redirect(f"http://localhost:3000/dj-rest-auth/registration/account-confirm-email/{key}")
+    try:
+        # Try to get the email confirmation object
+        try:
+            email_confirmation = EmailConfirmation.objects.get(key=key)
+        except EmailConfirmation.DoesNotExist:
+            # Try HMAC confirmation
+            email_confirmation = EmailConfirmationHMAC.from_key(key)
+            if not email_confirmation:
+                return redirect(f"{settings.FRONTEND_URL}/login?error=invalid_key")
+        
+        # Confirm the email
+        email_confirmation.confirm(request)
+        
+        # Redirect to frontend with success message
+        return redirect(f"{settings.FRONTEND_URL}/login?verified=true&message=Email confirmed successfully")
+        
+    except Exception as e:
+        # Redirect to frontend with error message
+        return redirect(f"{settings.FRONTEND_URL}/login?error=confirmation_failed")
 
 def reset_password_confirm(request, uid, token):
     return redirect(f"http://localhost:3000/reset/password/confirm/{uid}/{token}")
