@@ -21,7 +21,7 @@ const ChangePassword = ({ isAuthenticated, changePassword }) => {
         return <Navigate to={"../login"}></Navigate>
     }
     return (
-        <div className="page-container">
+        <div className="auth-page-container">
         <h1 className="main-title"></h1>
 
         <div className="login-container">

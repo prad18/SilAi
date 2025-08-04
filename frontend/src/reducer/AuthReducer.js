@@ -26,7 +26,7 @@ const AuthReducer = (state=initialState, action) => {
                 access: null,
                 isAuthenticated: false,
                 user: null,
-                message: "Login fail"
+                message: payload || "Login failed"
             }
         case TYPE.VERIFY_SUCCESS:
             return {

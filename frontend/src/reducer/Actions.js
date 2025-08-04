@@ -92,7 +92,8 @@ export const getUser = () => async dispatch => {
             }
         };
         try {
-            const res = await axios.get(`${process.env.REACT_APP_API_URL}/dj-rest-auth/user/`, config);
+            // Use custom profile endpoint that includes has_usable_password field
+            const res = await axios.get(`${process.env.REACT_APP_API_URL}/accounts/profile/`, config);
             dispatch ({
                 type: TYPE.GET_USER_SUCCESS,
                 payload: res.data
@@ -296,9 +297,30 @@ export const googleLogin = ( code ) => async dispatch => {
                 type: TYPE.LOGIN_SUCCESS,
                 payload: res.data
             })
+            
+            // Fetch user data after successful Google login to get social account info
+            try {
+                await dispatch(getUser());
+            } catch (userError) {
+                console.warn("Failed to fetch user data after Google login:", userError);
+            }
         } catch (err) {
+            // Extract error message from response
+            let errorMessage = "Google Sign-In failed. Please try again.";
+            
+            if (err.response && err.response.data) {
+                if (err.response.data.non_field_errors && err.response.data.non_field_errors.length > 0) {
+                    errorMessage = err.response.data.non_field_errors[0];
+                } else if (err.response.data.detail) {
+                    errorMessage = err.response.data.detail;
+                } else if (typeof err.response.data === 'string') {
+                    errorMessage = err.response.data;
+                }
+            }
+            
             dispatch ({
-                type: TYPE.LOGIN_FAIL
+                type: TYPE.LOGIN_FAIL,
+                payload: errorMessage
             })
         }
     } else {

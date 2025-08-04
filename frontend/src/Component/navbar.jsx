@@ -6,7 +6,7 @@ import { connect } from "react-redux";
 import { logout } from "../reducer/Actions";
 import "../css/Navbar.css"; // Assuming you have a CSS file for styling
 
-const Navbar = ({ user,logout }) => {
+const Navbar = ({ user, logout }) => {
     const { access, isAuthenticated } = useSelector((state) => state.AuthReducer);
     const navigate = useNavigate();
     const [userProfileImage, setUserProfileImage] = useState(null);
@@ -104,7 +104,10 @@ const Navbar = ({ user,logout }) => {
           {showDropdown && (
             <div className="profile-dropdown">
               <button onClick={handleMyAccount}>My Account</button>
-              <button onClick={handleChangePassword}>Change Password</button>
+              {/* Only show Change Password for users with usable passwords (not Google users) */}
+              {user && user.has_usable_password && (
+                <button onClick={handleChangePassword}>Change Password</button>
+              )}
               <button onClick={handleLogout}>Logout</button>
             </div>
           )}
@@ -115,7 +118,8 @@ const Navbar = ({ user,logout }) => {
 
 const mapStateToProps = ( state ) => {
     return {
-        isAuthenticated: state.AuthReducer.isAuthenticated
+        isAuthenticated: state.AuthReducer.isAuthenticated,
+        user: state.AuthReducer.user
     }
 }
 

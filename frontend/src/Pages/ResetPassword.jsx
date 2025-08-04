@@ -21,7 +21,7 @@ const ResetPassword = ({ resetPassword }) => {
         return <Navigate to={"../"}></Navigate>
     }
     return (
-        <div className="page-container">
+        <div className="auth-page-container">
         <h1 className="main-title">SilAI</h1>
   
         <div className="login-container">
