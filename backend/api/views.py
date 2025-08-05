@@ -32,23 +32,48 @@ class LeaderViewSet(viewsets.ModelViewSet):
         leader = self.get_object()
         user_input = request.data.get('message')
         session_id = request.data.get('session_id', str(uuid.uuid4()))
+        is_streaming = request.data.get('streaming', False)  # Add streaming parameter
         chat_history = []
 
         if not user_input:
-            return Response({'error': 'Message is required'}, status=status.HTTP_400_BAD_REQUEST)
+            if is_streaming:
+                def error_stream():
+                    yield f"data: {json.dumps({'error': 'Message is required'})}\n\n"
+                return StreamingHttpResponse(error_stream(), content_type='text/plain')
+            else:
+                return Response({'error': 'Message is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         if user_input.strip().lower() in ["thanks", "thank you", "ok", "okay", "cool", "hmm"]:
-            return Response({
-                'response': "You're welcome!",
-                'session_id': session_id
-            })
+            response_text = "You're welcome!"
+            if is_streaming:
+                def quick_response_stream():
+                    yield f"data: {json.dumps({'content': response_text, 'done': True, 'session_id': session_id})}\n\n"
+                return StreamingHttpResponse(quick_response_stream(), content_type='text/plain')
+            else:
+                return Response({
+                    'response': response_text,
+                    'session_id': session_id
+                })
 
         if len(user_input.strip()) < 4:
-            return Response({
-                'response': "Could you please rephrase your question?",
-                'session_id': session_id
-            })
+            response_text = "Could you please rephrase your question?"
+            if is_streaming:
+                def rephrase_stream():
+                    yield f"data: {json.dumps({'content': response_text, 'done': True, 'session_id': session_id})}\n\n"
+                return StreamingHttpResponse(rephrase_stream(), content_type='text/plain')
+            else:
+                return Response({
+                    'response': response_text,
+                    'session_id': session_id
+                })
 
+        if is_streaming:
+            return self._handle_streaming_chat(request, leader, user_input, session_id)
+        else:
+            return self._handle_regular_chat(request, leader, user_input, session_id)
+
+    def _handle_regular_chat(self, request, leader, user_input, session_id):
+        """Handle regular non-streaming chat"""
         try:
             # Load the FAISS index
             pkl_path = os.path.join(settings.MEDIA_ROOT, leader.pkl_file_path)
@@ -61,7 +86,7 @@ class LeaderViewSet(viewsets.ModelViewSet):
             with open(pkl_path, 'rb') as f:
                 db = pickle.load(f)
 
-            # Initialize LLM
+            # Initialize LLM (no streaming for regular chat)
             try:
                 llm = Ollama(model="qwen2.5", base_url="http://localhost:11434")
             except Exception as e:
@@ -97,24 +122,17 @@ Answer:
             ai_response = response.get("answer") or response.get("output") or str(response)
             sources = response.get("context", [])
 
-            # Format citations (New version)
+            # Format citations
             citations = []
             for doc in sources:
                 meta = doc.metadata
                 page = meta.get('page', 'Unknown')
-
-                # Get the full path and extract only the filename
                 full_path = meta.get('source')
                 source_filename = os.path.basename(full_path) if full_path else 'PDF'
-
                 citations.append(f"{source_filename}, page {page}")
 
             citations_text = "\nCitations:\n" + "\n".join(set(citations)) if citations else ""
             full_response = f"{ai_response}{citations_text}"
-
-            # Track history
-            chat_history.append(f"User: {user_input}")
-            chat_history.append(f"Assistant: {full_response}")
 
             # Save to DB
             chat = Chat.objects.create(
@@ -138,28 +156,8 @@ Answer:
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @action(detail=True, methods=['post'])
-    def chat_stream(self, request, pk=None):
-        """Streaming version of the chat endpoint"""
-        leader = self.get_object()
-        user_input = request.data.get('message')
-        session_id = request.data.get('session_id', str(uuid.uuid4()))
-
-        if not user_input:
-            def error_stream():
-                yield f"data: {json.dumps({'error': 'Message is required'})}\n\n"
-            return StreamingHttpResponse(error_stream(), content_type='text/plain')
-
-        if user_input.strip().lower() in ["thanks", "thank you", "ok", "okay", "cool", "hmm"]:
-            def quick_response_stream():
-                yield f"data: {json.dumps({'content': 'You are welcome!', 'done': True, 'session_id': session_id})}\n\n"
-            return StreamingHttpResponse(quick_response_stream(), content_type='text/plain')
-
-        if len(user_input.strip()) < 4:
-            def rephrase_stream():
-                yield f"data: {json.dumps({'content': 'Could you please rephrase your question?', 'done': True, 'session_id': session_id})}\n\n"
-            return StreamingHttpResponse(rephrase_stream(), content_type='text/plain')
-
+    def _handle_streaming_chat(self, request, leader, user_input, session_id):
+        """Handle streaming chat"""
         def generate_streaming_response():
             try:
                 # Load the FAISS index
@@ -171,14 +169,17 @@ Answer:
                 with open(pkl_path, 'rb') as f:
                     db = pickle.load(f)
 
-                # Initialize LLM
+                # Initialize LLM with streaming enabled
                 try:
-                    llm = Ollama(model="qwen2.5", base_url="http://localhost:11434")
+                    llm = Ollama(
+                        model="qwen2.5", 
+                        base_url="http://localhost:11434"
+                    )
                 except Exception as e:
                     yield f"data: {json.dumps({'error': 'Failed to connect to Ollama. Please ensure Ollama is running with qwen2.5 model.'})}\n\n"
                     return
 
-                # Prompt template (same as original)
+                # Prompt template
                 prompt = ChatPromptTemplate.from_template("""You are a helpful assistant. Answer based ONLY on the context provided.
 
 RULES:
@@ -200,12 +201,29 @@ Answer:
                 retriever = db.as_retriever(search_kwargs={"k": 3})
                 retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
-                # Run chain and get response
-                response = retrieval_chain.invoke({"input": user_input})
-                ai_response = response.get("answer") or response.get("output") or str(response)
-                sources = response.get("context", [])
+                # Stream the response using native Ollama streaming
+                full_response = ""
+                sources = []
+                
+                # Use streaming invoke for real-time token generation
+                for chunk in retrieval_chain.stream({"input": user_input}):
+                    if 'answer' in chunk and chunk['answer']:
+                        token = chunk['answer']
+                        full_response += token
+                        
+                        # Send each token as it arrives from Ollama
+                        chunk_data = {
+                            'content': full_response,
+                            'done': False,
+                            'session_id': session_id
+                        }
+                        yield f"data: {json.dumps(chunk_data)}\n\n"
+                    
+                    # Collect context/sources for citations
+                    if 'context' in chunk:
+                        sources = chunk['context']
 
-                # Format citations (same as original)
+                # Format citations after streaming is complete
                 citations = []
                 for doc in sources:
                     meta = doc.metadata
@@ -215,41 +233,23 @@ Answer:
                     citations.append(f"{source_filename}, page {page}")
 
                 citations_text = "\nCitations:\n" + "\n".join(set(citations)) if citations else ""
-
-                # Stream the response word by word
-                words = ai_response.split()
-                current_text = ""
-                
-                for i, word in enumerate(words):
-                    current_text += word + " "
-                    
-                    # Send chunk with current progress
-                    chunk_data = {
-                        'content': current_text.strip(),
-                        'done': False,
-                        'session_id': session_id
-                    }
-                    yield f"data: {json.dumps(chunk_data)}\n\n"
-                    
-                    # Add small delay for better streaming effect
-                    time.sleep(0.05)
+                final_response = f"{full_response}{citations_text}"
 
                 # Send final response with citations
-                full_response = f"{ai_response}{citations_text}"
                 final_data = {
-                    'content': full_response,
+                    'content': final_response,
                     'done': True,
                     'session_id': session_id
                 }
                 yield f"data: {json.dumps(final_data)}\n\n"
 
-                # Save to DB (same as original)
+                # Save to DB
                 try:
                     Chat.objects.create(
                         user=request.user,
                         leader=leader,
                         user_input=user_input,
-                        ai_response=full_response,
+                        ai_response=final_response,
                         session_id=session_id
                     )
                 except Exception as db_error:

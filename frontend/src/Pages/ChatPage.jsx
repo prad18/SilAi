@@ -333,7 +333,7 @@ const ChatPage = () => {
         }]);
 
         try {
-            const url = `${API_BASE_URL}/api/leaders/${leaderId}/chat_stream/`;
+            const url = `${API_BASE_URL}/api/leaders/${leaderId}/chat/`;
             console.log('Sending streaming message to:', url);
             
             const response = await fetch(url, {
@@ -344,7 +344,8 @@ const ChatPage = () => {
                 },
                 body: JSON.stringify({
                     message: messageToSend,
-                    session_id: sessionId
+                    session_id: sessionId,
+                    streaming: true  // Enable streaming mode
                 })
             });
 
