@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { connect } from "react-redux";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import queryString from "query-string";
 import Navbar from "../Component/navbar";
 import Alert from "../Component/alert";
@@ -8,6 +8,7 @@ import { verify, getUser, googleLogin } from "../reducer/Actions";
 
 const Layout = (props) => {
     let location = useLocation();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const values = queryString.parse(location.search);
@@ -21,8 +22,18 @@ const Layout = (props) => {
         }
     }, [location.search]); // Only depend on search params, not the full location
 
+    // Redirect to home after successful Google authentication
+    useEffect(() => {
+        if (props.isAuthenticated && location.search.includes('code=')) {
+            // Clear the URL parameters and redirect to home
+            navigate('/home', { replace: true });
+        }
+    }, [props.isAuthenticated, location.search, navigate]);
+
     // Check if current route is ChatPage - hide navbar for chat pages
     const isChatPage = location.pathname.startsWith('/chat/');
+    // Check if current route is landing page - hide navbar for unauthenticated users
+    const isLandingPage = location.pathname === '/';
 
     return (
         <div>

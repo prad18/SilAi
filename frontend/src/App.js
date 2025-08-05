@@ -22,6 +22,7 @@ import ResetPasswordConfirm from "./Pages/ResetPasswordConfirm";
 import EmailVerification from "./Pages/EmailVerification";
 import UserProfile from "./Pages/UserProfile";
 import ChatPage from "./Pages/ChatPage";
+import LandingPage from "./Pages/LandingPage";
 
 // Store
 import Store from "./Store";
@@ -110,11 +111,11 @@ const App = () => {
               }
             />
 
-            {/* Redirect root to login */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* Redirect root to landing page for unauthenticated users, home for authenticated */}
+            <Route path="/" element={<LandingPage />} />
 
-            {/* Catch all other routes and redirect to home */}
-            <Route path="*" element={<Navigate to="/home" replace />} />
+            {/* Catch all other routes and redirect appropriately */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
       </Router>
