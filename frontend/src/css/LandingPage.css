@@ -95,7 +95,7 @@ html {
 }
 
 .nav-link {
-  color: var(--primary-color);
+  color: white;
   text-decoration: none;
   font-weight: 500;
   transition: all 0.3s ease;
@@ -106,8 +106,8 @@ html {
 }
 
 .nav-link:hover {
-  color: var(--crimson-red);
-  text-shadow: 0 0 8px rgba(211, 47, 47, 0.5);
+  color: #f0f0f0;
+  text-shadow: 2px 2px 12px rgba(0, 0, 0, 0.7);
 }
 
 .nav-cta {

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import "../css/LandingPage.css";
+import "../css/Navbar.css";
 
 const LandingPage = () => {
   const { isAuthenticated } = useSelector((state) => state.AuthReducer);
@@ -33,18 +34,18 @@ const LandingPage = () => {
   return (
     <div className="landing-page">
       {/* Navigation Bar for Landing Page */}
-      <nav className="landing-nav">
-        <div className="nav-container">
-          <Link to="/" className="nav-brand">SilAI</Link>
-          <div className="nav-links">
-            {isAuthenticated ? (
-              <Link to="/home" className="nav-link">Dashboard</Link>
-            ) : (
-              <Link to="/login" className="nav-link">Sign In</Link>
-            )}
-          </div>
+      <div className="navbar">
+        <h2 className="navbar-title clickable-title">
+          <Link to="/" style={{ color: 'inherit', textDecoration: 'none' }}>SilAI</Link>
+        </h2>
+        <div className="nav-links">
+          {isAuthenticated ? (
+            <Link to="/home" className="nav-link">Dashboard</Link>
+          ) : (
+            <Link to="/login" className="nav-link">Sign In</Link>
+          )}
         </div>
-      </nav>
+      </div>
 
       {/* Hero Section */}
       <section className="hero-section">
@@ -68,7 +69,7 @@ const LandingPage = () => {
                   transformStyle: "preserve-3d"
                 }}
               >
-                Welcome to 
+                Welcome to &nbsp;
               </span>
               <span 
                 className="brand-highlight"
