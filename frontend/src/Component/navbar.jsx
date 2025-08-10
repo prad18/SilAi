@@ -87,7 +87,7 @@ const Navbar = ({ user, logout }) => {
   const handleLogout = () => {
     setShowDropdown(false);
     logout();
-    navigate("/login");
+    navigate("/");
   };
     return (
       <div className="navbar">

@@ -72,11 +72,12 @@ const Home = ({ user }) => {
 
   return (
     <div className="page-container">
-      <h1 className="greet">Hello, {user?.first_name || "User"}</h1>
+      <h1 className="greet">&nbsp;Hello, {user?.first_name || "User"}</h1>
 
       <div className="list">
-        <h4 className="l-header">People</h4>
+        <br />        
         <div className="scroll-container">
+          &nbsp;
           {leaders.length > 0 ? (
             leaders.map((leader) => (
               <Leader key={leader.id} leader={leader} />
