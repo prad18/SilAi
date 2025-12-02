@@ -7,7 +7,7 @@ import '../css/ChatPage.css';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const MAX_MESSAGES = 20; // Maximum number of messages before prompting to clear
 
-// Simple UUID generator (no external dependency needed)
+// Helper function to generate UUID
 const generateUUID = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
@@ -20,29 +20,124 @@ const ChatPage = () => {
     const navigate = useNavigate();
     const { access } = useSelector((state) => state.AuthReducer);
     
-    // State management - matching original Chat.js
+    // State management
     const [leader, setLeader] = useState(null);
     const [messages, setMessages] = useState([]);
     const [inputMessage, setInputMessage] = useState('');
-    const [sessionId, setSessionId] = useState(() => {
-        // Try to get existing session ID from localStorage - same as original
-        const storedSessionId = localStorage.getItem(`chat_session_${leaderId}`);
-        if (storedSessionId) {
-            return storedSessionId;
-        }
-        // Generate new session ID if none exists
-        const newSessionId = generateUUID();
-        localStorage.setItem(`chat_session_${leaderId}`, newSessionId);
-        return newSessionId;
-    });
+    const [sessionId, setSessionId] = useState(null);
+    const [sessions, setSessions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showClearPrompt, setShowClearPrompt] = useState(false);
     const [imageError, setImageError] = useState(false);
     const [suggestions, setSuggestions] = useState([]);
     const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
+    const [editingSessionId, setEditingSessionId] = useState(null);
+    const [editingSessionName, setEditingSessionName] = useState('');
     
     // Refs
     const messagesEndRef = useRef(null);
+
+    // Session management functions
+    const fetchSessions = async () => {
+        try {
+            const response = await axios.get(
+                `${API_BASE_URL}/api/leaders/${leaderId}/get_sessions/`,
+                { headers: getAuthHeader() }
+            );
+            return response.data.sessions || [];
+        } catch (error) {
+            console.error('Error fetching sessions:', error);
+            return [];
+        }
+    };
+
+    const createNewSession = async (sessionName = 'New Chat') => {
+        try {
+            const response = await axios.post(
+                `${API_BASE_URL}/api/leaders/${leaderId}/create_session/`,
+                { session_name: sessionName },
+                { headers: getAuthHeader() }
+            );
+            return response.data;
+        } catch (error) {
+            console.error('Error creating session:', error);
+            throw error;
+        }
+    };
+
+    const renameSession = async (sessionId, newName) => {
+        try {
+            const response = await axios.post(
+                `${API_BASE_URL}/api/leaders/${leaderId}/rename_session/`,
+                { session_id: sessionId, session_name: newName },
+                { headers: getAuthHeader() }
+            );
+            return response.data;
+        } catch (error) {
+            console.error('Error renaming session:', error);
+            throw error;
+        }
+    };
+
+    const deleteSession = async (sessionIdToDelete) => {
+        try {
+            await axios.post(
+                `${API_BASE_URL}/api/leaders/${leaderId}/delete_session/`,
+                { session_id: sessionIdToDelete },
+                { headers: getAuthHeader() }
+            );
+            
+            // Refresh sessions list
+            const updatedSessions = await fetchSessions();
+            setSessions(updatedSessions);
+            
+            // If we deleted the current session, switch to another one or create new
+            if (sessionIdToDelete === sessionId) {
+                if (updatedSessions.length > 0) {
+                    setSessionId(updatedSessions[0].session_id);
+                } else {
+                    const newSession = await createNewSession();
+                    setSessionId(newSession.session_id);
+                    setSessions([newSession]);
+                }
+                
+                // Reset messages
+                setMessages([{
+                    type: 'ai',
+                    content: `Hello! I'm ${leader?.name}. How can I help you today?`
+                }]);
+            }
+        } catch (error) {
+            console.error('Error deleting session:', error);
+            throw error;
+        }
+    };
+
+    const initializeSession = async () => {
+        try {
+            // Fetch existing sessions
+            const sessionsList = await fetchSessions();
+            setSessions(sessionsList);
+            
+            if (sessionsList.length > 0) {
+                // Use the most recent session
+                const latestSession = sessionsList[0];
+                setSessionId(latestSession.session_id);
+            } else {
+                // Create a new session if none exist with leader's name
+                const initialName = leader?.name ? `Chat with ${leader.name}` : 'New Chat';
+                const newSession = await createNewSession(initialName);
+                setSessionId(newSession.session_id);
+                setSessions([newSession]);
+            }
+        } catch (error) {
+            console.error('Error initializing session:', error);
+            // Fallback: create a session with UUID
+            const fallbackSessionId = generateUUID();
+            setSessionId(fallbackSessionId);
+        }
+    };
+
 
     // Get auth token - same as original
     const getAuthHeader = () => {
@@ -239,14 +334,22 @@ const ChatPage = () => {
         fetchLeader();
     }, [leaderId, access]);
 
-    // Load chat history when component mounts - same as original
+    // Initialize session when component mounts
     useEffect(() => {
-        if (leader && leader.name) {
+        if (leaderId && access) {
+            initializeSession();
+        }
+    }, [leaderId, access]);
+
+    // Load chat history when session is ready
+    useEffect(() => {
+        if (leader && leader.name && sessionId) {
             console.log('Chat component mounted with leader:', leader);
+            console.log('Using session ID:', sessionId);
             console.log('API Base URL:', API_BASE_URL);
             loadChatHistory();
         }
-    }, [leader, loadChatHistory]);
+    }, [leader, sessionId, loadChatHistory]);
 
     // Parse response to separate main content from citations
     const parseResponse = (response) => {
@@ -407,9 +510,30 @@ const ChatPage = () => {
                                 return newMessages;
                             });
 
-                            // If streaming is complete, fetch suggestions
+                            // If streaming is complete, fetch suggestions and auto-name session
                             if (data.done && leader) {
                                 fetchSuggestions(messageToSend);
+                                
+                                // Auto-rename session if it's still using default name
+                                const currentSession = sessions.find(s => s.session_id === sessionId);
+                                if (currentSession && 
+                                    (currentSession.session_name === 'New Chat' || 
+                                     currentSession.session_name === `Chat with ${leader.name}`) &&
+                                    currentSession.message_count <= 2) {
+                                    
+                                    // Create a meaningful name from the first user message
+                                    const sessionName = messageToSend.length > 50 
+                                        ? messageToSend.substring(0, 47) + '...'
+                                        : messageToSend;
+                                    
+                                    try {
+                                        await renameSession(sessionId, sessionName);
+                                        const updatedSessions = await fetchSessions();
+                                        setSessions(updatedSessions);
+                                    } catch (error) {
+                                        console.error('Error auto-renaming session:', error);
+                                    }
+                                }
                             }
 
                         } catch (parseError) {
@@ -445,27 +569,32 @@ const ChatPage = () => {
         }
     };
 
-    // Clear chat function - EXACT same as original Chat.js
+    // Clear chat function - Updated for backend session management
     const handleClearChat = async () => {
         try {
-            // Call backend to clear chat history
+            // Delete the current session (this will also delete all chats)
             await axios.post(
-                `${API_BASE_URL}/api/leaders/${leaderId}/clear_chat/`,
+                `${API_BASE_URL}/api/leaders/${leaderId}/delete_session/`,
                 { session_id: sessionId },
                 {
                     headers: getAuthHeader()
                 }
             );
 
+            // Create a new session
+            const newSession = await createNewSession();
+            setSessionId(newSession.session_id);
+
+            // Update sessions list
+            const updatedSessions = await fetchSessions();
+            setSessions(updatedSessions);
+
             // Reset local state
             setMessages([{
                 type: 'ai',
                 content: `Hello! I'm ${leader.name}. How can I help you today?`
             }]);
-            // Generate new session ID and store it
-            const newSessionId = generateUUID();
-            localStorage.setItem(`chat_session_${leaderId}`, newSessionId);
-            setSessionId(newSessionId);
+            
             setShowClearPrompt(false);
         } catch (error) {
             console.error('Error clearing chat:', error);
@@ -525,6 +654,131 @@ const ChatPage = () => {
                         <h2>{leader?.name || 'Loading...'}</h2>
                         <p className="leader-description">{leader?.bio || 'Loading leader information...'}</p>
                     </div>
+                </div>
+                
+                {/* Session Management */}
+                <div className="session-management">
+                    <div className="session-selector">
+                        <div className="session-controls">
+                            <select 
+                                value={sessionId || ''} 
+                                onChange={(e) => {
+                                    const selectedSessionId = e.target.value;
+                                    if (selectedSessionId && selectedSessionId !== sessionId) {
+                                        setSessionId(selectedSessionId);
+                                    }
+                                }}
+                                className="session-select"
+                            >
+                                {sessions.map(session => (
+                                    <option key={session.session_id} value={session.session_id}>
+                                        {session.session_name} ({session.message_count} messages)
+                                    </option>
+                                ))}
+                            </select>
+                            
+                            <div className="session-actions">
+                                <button 
+                                    className="session-action-btn edit-btn"
+                                    onClick={() => {
+                                        const currentSession = sessions.find(s => s.session_id === sessionId);
+                                        if (currentSession) {
+                                            setEditingSessionId(sessionId);
+                                            setEditingSessionName(currentSession.session_name);
+                                        }
+                                    }}
+                                    title="Rename session"
+                                    disabled={!sessionId || sessions.length === 0}
+                                >
+                                    ✏️
+                                </button>
+                                
+                                <button 
+                                    className="session-action-btn delete-btn"
+                                    onClick={async () => {
+                                        if (sessionId && window.confirm('Are you sure you want to delete this chat session? This action cannot be undone.')) {
+                                            try {
+                                                await deleteSession(sessionId);
+                                            } catch (error) {
+                                                alert('Failed to delete session. Please try again.');
+                                            }
+                                        }
+                                    }}
+                                    title="Delete session"
+                                    disabled={!sessionId || sessions.length === 0}
+                                >
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button 
+                            className="new-chat-button"
+                            onClick={async () => {
+                                try {
+                                    const sessionName = leader?.name ? `Chat with ${leader.name}` : 'New Chat';
+                                    const newSession = await createNewSession(sessionName);
+                                    setSessionId(newSession.session_id);
+                                    const updatedSessions = await fetchSessions();
+                                    setSessions(updatedSessions);
+                                    setMessages([{
+                                        type: 'ai',
+                                        content: `Hello! I'm ${leader.name}. How can I help you today?`
+                                    }]);
+                                } catch (error) {
+                                    console.error('Error creating new session:', error);
+                                }
+                            }}
+                        >
+                            + New Chat
+                        </button>
+                    </div>
+                    
+                    {/* Session Rename Modal */}
+                    {editingSessionId && (
+                        <div className="rename-modal-overlay" onClick={() => setEditingSessionId(null)}>
+                            <div className="rename-modal" onClick={(e) => e.stopPropagation()}>
+                                <h3>Rename Chat Session</h3>
+                                <input
+                                    type="text"
+                                    value={editingSessionName}
+                                    onChange={(e) => setEditingSessionName(e.target.value)}
+                                    className="rename-input"
+                                    placeholder="Enter new session name"
+                                    autoFocus
+                                />
+                                <div className="rename-actions">
+                                    <button 
+                                        onClick={async () => {
+                                            try {
+                                                if (editingSessionName.trim()) {
+                                                    await renameSession(editingSessionId, editingSessionName.trim());
+                                                    const updatedSessions = await fetchSessions();
+                                                    setSessions(updatedSessions);
+                                                    setEditingSessionId(null);
+                                                    setEditingSessionName('');
+                                                }
+                                            } catch (error) {
+                                                alert('Failed to rename session. Please try again.');
+                                            }
+                                        }}
+                                        className="rename-save-btn"
+                                    >
+                                        Save
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            setEditingSessionId(null);
+                                            setEditingSessionName('');
+                                        }}
+                                        className="rename-cancel-btn"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 
                 <div className="chat-buttons-row">

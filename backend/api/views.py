@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.http import StreamingHttpResponse
-from .models import Leader, Chat
+from .models import Leader, Chat, UserLeaderSession
 from .serializers import LeaderSerializer, ChatSerializer
 import pickle
 import os
@@ -31,9 +31,37 @@ class LeaderViewSet(viewsets.ModelViewSet):
     def chat(self, request, pk=None):
         leader = self.get_object()
         user_input = request.data.get('message')
-        session_id = request.data.get('session_id', str(uuid.uuid4()))
-        is_streaming = request.data.get('streaming', False)  # Add streaming parameter
-        chat_history = []
+        session_id = request.data.get('session_id')
+        is_streaming = request.data.get('streaming', False)
+        
+        # Ensure session exists
+        if session_id:
+            try:
+                session = UserLeaderSession.objects.get(
+                    session_id=session_id,
+                    user=request.user,
+                    leader=leader
+                )
+                # Update session timestamp
+                session.save()
+            except UserLeaderSession.DoesNotExist:
+                # Create session if it doesn't exist
+                session_id = str(uuid.uuid4())
+                UserLeaderSession.objects.create(
+                    user=request.user,
+                    leader=leader,
+                    session_id=session_id,
+                    session_name="New Chat"
+                )
+        else:
+            # Create new session
+            session_id = str(uuid.uuid4())
+            UserLeaderSession.objects.create(
+                user=request.user,
+                leader=leader,
+                session_id=session_id,
+                session_name="New Chat"
+            )
 
         if not user_input:
             if is_streaming:
@@ -400,6 +428,159 @@ Generate exactly 2-3 follow-up questions, one per line, without numbering or bul
             print(f"Error in suggestions endpoint: {str(e)}")
             return Response(
                 {'error': f'An error occurred while generating suggestions: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['get'])
+    def get_sessions(self, request, pk=None):
+        """Get all sessions for current user and this leader"""
+        try:
+            leader = self.get_object()
+            sessions = UserLeaderSession.objects.filter(
+                user=request.user,
+                leader=leader,
+                is_active=True
+            ).order_by('-updated_at')
+            
+            sessions_data = []
+            for session in sessions:
+                # Get the count of messages in this session
+                message_count = Chat.objects.filter(
+                    session_id=session.session_id,
+                    user=request.user
+                ).count()
+                
+                sessions_data.append({
+                    'id': session.id,
+                    'session_id': session.session_id,
+                    'session_name': session.session_name,
+                    'created_at': session.created_at,
+                    'updated_at': session.updated_at,
+                    'message_count': message_count
+                })
+            
+            return Response({'sessions': sessions_data})
+            
+        except Exception as e:
+            print(f"Error in get_sessions: {str(e)}")
+            return Response(
+                {'error': f'Failed to get sessions: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def create_session(self, request, pk=None):
+        """Create a new session for current user and this leader"""
+        try:
+            leader = self.get_object()
+            session_name = request.data.get('session_name', 'New Chat')
+            
+            # Generate unique session ID
+            session_id = str(uuid.uuid4())
+            
+            # Create new session
+            session = UserLeaderSession.objects.create(
+                user=request.user,
+                leader=leader,
+                session_id=session_id,
+                session_name=session_name
+            )
+            
+            return Response({
+                'id': session.id,
+                'session_id': session.session_id,
+                'session_name': session.session_name,
+                'created_at': session.created_at,
+                'updated_at': session.updated_at,
+                'message_count': 0
+            })
+            
+        except Exception as e:
+            print(f"Error in create_session: {str(e)}")
+            return Response(
+                {'error': f'Failed to create session: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def rename_session(self, request, pk=None):
+        """Rename a session"""
+        try:
+            leader = self.get_object()
+            session_id = request.data.get('session_id')
+            new_name = request.data.get('session_name')
+            
+            if not session_id or not new_name:
+                return Response(
+                    {'error': 'session_id and session_name are required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            session = UserLeaderSession.objects.get(
+                session_id=session_id,
+                user=request.user,
+                leader=leader
+            )
+            
+            session.session_name = new_name
+            session.save()
+            
+            return Response({
+                'id': session.id,
+                'session_id': session.session_id,
+                'session_name': session.session_name,
+                'updated_at': session.updated_at
+            })
+            
+        except UserLeaderSession.DoesNotExist:
+            return Response(
+                {'error': 'Session not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error in rename_session: {str(e)}")
+            return Response(
+                {'error': f'Failed to rename session: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def delete_session(self, request, pk=None):
+        """Delete a session and all its chats"""
+        try:
+            leader = self.get_object()
+            session_id = request.data.get('session_id')
+            
+            if not session_id:
+                return Response(
+                    {'error': 'session_id is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Delete all chats in this session
+            chat_count = Chat.objects.filter(
+                session_id=session_id,
+                user=request.user,
+                leader=leader
+            ).delete()[0]
+            
+            # Delete the session
+            session_deleted = UserLeaderSession.objects.filter(
+                session_id=session_id,
+                user=request.user,
+                leader=leader
+            ).delete()[0]
+            
+            return Response({
+                'message': f'Session deleted successfully. Removed {chat_count} chat messages.',
+                'deleted_chats': chat_count,
+                'deleted_sessions': session_deleted
+            })
+            
+        except Exception as e:
+            print(f"Error in delete_session: {str(e)}")
+            return Response(
+                {'error': f'Failed to delete session: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

@@ -75,6 +75,21 @@ def process_leader_pdf_to_faiss(sender, instance, **kwargs):
         except Exception as e:
             print(f"Error processing PDF for {instance.name}: {e}")
 
+class UserLeaderSession(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_sessions')
+    leader = models.ForeignKey(Leader, on_delete=models.CASCADE, related_name='leader_sessions')
+    session_id = models.CharField(max_length=255, unique=True)
+    session_name = models.CharField(max_length=255, default="New Chat")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.leader.name} - {self.session_name}"
+
 class Chat(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chats', null=True)  # Temporarily allow null
     leader = models.ForeignKey(Leader, on_delete=models.CASCADE, related_name='chats')
